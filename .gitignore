@@ -1,6 +1,7 @@
 # Tooling
 /.direnv
 /.pre-commit-config.yaml
+/compile_commands.json
 
 # Build artifacts
 /build

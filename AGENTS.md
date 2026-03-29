@@ -4,6 +4,10 @@
 
 C++ project for creating column-major DLPack arrays using LibTorch's c10 allocator, with Armadillo support.
 
+## Important Notes
+
+**Always ask for confirmation before applying any changes.**
+
 ## Build System
 
 Uses CMakePresets.json with Ninja generator. Configure and build:
