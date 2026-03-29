@@ -1,0 +1,6 @@
+# Tooling
+/.direnv
+/.pre-commit-config.yaml
+
+# Build artifacts
+/build
