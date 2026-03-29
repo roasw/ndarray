@@ -17,7 +17,15 @@ Uses CMakePresets.json with Ninja generator. Configure and build:
 ## Code Style
 
 - C++ formatting: Follow existing patterns in codebase
+- Header include ordering: STL first, then third-party libs, our own headers last
+  - Empty line between each group
 - Run `ruff` for any Python files
+
+## Project Structure
+
+- Headers: `inc/`
+- Source: `src/`
+- Tests: `test/`
 
 ## Pre-commit Hooks
 
@@ -36,6 +44,14 @@ Provided by nix devShell: libtorch-bin, armadillo, cmake, ninja
 
 ## Technical Notes
 
+### ndarray Class
+
+- Templated class with explicit specializations in `.cpp` files
+- Supported types: `float`, `double`, `int`, `bool`
+- Column-major layout for Armadillo compatibility
+- Uses DLPack with c10 allocator from LibTorch for memory management
+- Keep numpy compatibility in mind for future use
+
 ### DLPack with Column-Major Layout
 
 When creating DLPack arrays for Armadillo interoperability:
@@ -45,8 +61,7 @@ When creating DLPack arrays for Armadillo interoperability:
 
 ## Testing
 
-- Test folder: `test/`
-- Tests are built and run alongside the main project
+Tests are built and run alongside the main project.
 
 ## Commands to Run After Changes
 
