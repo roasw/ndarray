@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -17,6 +18,7 @@ enum class Device { CPU, GPU };
 template <typename T> class ndarray {
   private:
     DLManagedTensor *m_tensor;
+    mutable std::unique_ptr<arma::Mat<T>> m_armaView;
 
   public:
     ndarray();

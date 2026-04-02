@@ -19,7 +19,7 @@ Uses CMakePresets.json with Ninja generator. Configure and build:
 - C++ formatting: Follow existing patterns in codebase
 - Header include ordering: STL first, then third-party libs, our own headers last
   - Empty line between each group
-- Private member naming: `m_` prefix (e.g., `m_data`, `m_shape`)
+- Private member naming: `m_` prefix with lowerCamelCase (e.g., `m_data`, `m_shape`, `m_armaView`)
 - Method naming: UpperCamelCase (e.g., `GetShape()`, `ToArmadillo()`)
 - Run `ruff` for any Python files
 
