@@ -58,11 +58,19 @@
           default = pkgsStable.mkShell {
             name = "ndarray-dev-env";
 
-            nativeBuildInputs = [
-              pkgsStable.cmake
-              pkgsStable.ninja
-              pkgs.opencode
-            ];
+            nativeBuildInputs =
+              with pkgs;
+              [
+                cmake
+                ninja
+                opencode
+              ]
+              ++ (
+                with pkgs;
+                lib.optionals stdenv.cc.isClang [
+                  clang-tools # needs clang-scan-deps to compile
+                ]
+              );
 
             buildInputs = with pkgsStable; [
               libtorch-bin
