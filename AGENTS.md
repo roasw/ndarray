@@ -2,70 +2,72 @@
 
 ## Project Overview
 
-C++ project for creating column-major DLPack arrays using LibTorch's c10 allocator, with Armadillo support.
+A C++/Python project that provides:
 
-## Important Notes
+1. `ndarray`: A C++ column-major DLPack container class compatible with Armadillo and `torch.array`.
+1. Upsampling algorithm: Python definition exported via `torch.compile`, compiled to a native CPU binary (`.pt2`) using `AOTIductor`, and loaded in C++.
 
-**Always ask for confirmation before applying any changes.**
-
-## Build System
-
-Uses CMakePresets.json with Ninja generator. Configure and build:
-- Debug: `cmake --preset Debug && cmake --build build/Debug`
-- Release: `cmake --preset Release && cmake --build build/Release`
-
-## Code Style
-
-- C++ formatting: Follow existing patterns in codebase
-- Header include ordering: STL first, then third-party libs, our own headers last
-  - Empty line between each group
-- Private member naming: `m_` prefix with lowerCamelCase (e.g., `m_data`, `m_shape`, `m_armaView`)
-- Method naming: UpperCamelCase (e.g., `GetShape()`, `ToArmadillo()`)
-- Run `ruff` for any Python files
+**Important:** Always ask for confirmation before applying changes.
 
 ## Project Structure
 
-- Headers: `inc/`
-- Source: `src/`
-- Tests: `test/`
+- **Headers**: `inc/container` (`ndarray`), `inc/algorithm` (upsampling).
+- **Source**: `src/container`, `src/algorithm`.
+- **Tests**: `test/`.
 
-## Pre-commit Hooks
+## Development & Workflow
 
-Linters run automatically via git-hooks.nix on commit:
-- `nixfmt`, `gitlint`, `clang-format`, `ruff`, `ruff-format`
+### Dependencies
 
-## Commit Messages
+Managed by nix `devShell` in `flake.nix`. Assume the environment is already in the `devShell` (via `direnv` integration) and all dependencies are readily available.
 
-Format: `(chore|doc|fix|feat|infra|refac|revert): <description>.`
-- Max title length: 72 characters
-- Must end with a period
+### Build System
 
-## Dependencies
+Uses `CMakePresets.json` with Ninja.
 
-Provided by nix devShell: libtorch-bin, armadillo, cmake, ninja
+- **Debug**: `cmake --preset Debug && cmake --build build/Debug`
+- **Release**: `cmake --preset Release && cmake --build build/Release`
+
+### Testing & Post-Change Commands
+
+Tests are built and run alongside the main project. After making changes, always verify with:
+
+1. **Build**: `cmake --build build/Debug`
+1. **Test**: `ctest --test-dir build/Debug`
+
+## Code Style & Conventions
+
+### Formatting & Naming
+
+- **C++ Formatting**: Follow existing patterns.
+- **Header Order**: STL, empty line, third-party, empty line, project headers.
+- **Private Members**: `m_` prefix + lowerCamelCase (e.g., `m_data`, `m_shape`).
+- **Methods**: UpperCamelCase (e.g., `GetShape()`, `ToArmadillo()`).
+- **Python**: Run `ruff` on all files.
+
+### Pre-commit Hooks
+
+Run `pre-commit run --all` to execute all linters. The configured linters can be looked up in `flake.nix`.
+
+### Commit Messages
+
+- **Format**: `(chore|doc|fix|feat|infra|refac|revert): <description>.`
+- **Rules**: Max 72 characters, must end with a period.
 
 ## Technical Notes
 
-### ndarray Class
+### `ndarray` Class
 
-- Templated class with explicit specializations in `.cpp` files
-- Supported types: `float`, `double`, `int`, `bool`
-- Column-major layout for Armadillo compatibility
-- Uses DLPack with c10 allocator from LibTorch for memory management
-- Keep numpy compatibility in mind for future use
+- Templated with explicit specializations in `.cpp` (`float`, `double`, `int`, `bool`).
+- Column-major layout for Armadillo compatibility.
+- Memory managed via DLPack with LibTorch's `c10` allocator.
+- Maintain NumPy compatibility.
+- Python wrapper acts as a drop-in replacement for `torch.array`.
 
-### DLPack with Column-Major Layout
+### DLPack & Column-Major Layout
 
-When creating DLPack arrays for Armadillo interoperability:
-- Use c10 allocator from LibTorch for memory management
-- Set strides for column-major (Fortran) order
-- Ensure proper memory alignment for tensor operations
+For Armadillo interoperability:
 
-## Testing
-
-Tests are built and run alongside the main project.
-
-## Commands to Run After Changes
-
-1. Build: `cmake --build build/Debug`
-2. Run tests: `ctest --test-dir build/Debug`
+- Use LibTorch's `c10` allocator.
+- Set strides for column-major (Fortran) order.
+- Ensure proper memory alignment.

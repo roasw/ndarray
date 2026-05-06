@@ -38,6 +38,8 @@
 
             gitlint.enable = true;
 
+            mdformat.enable = true;
+
             clang-format.enable = true;
 
             ruff.enable = true;
