@@ -1,4 +1,4 @@
-#include "ndarray.hpp"
+#include "container/ndarray.hpp"
 
 #include <cassert>
 #include <cmath>
