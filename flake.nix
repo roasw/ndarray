@@ -75,12 +75,16 @@
               );
 
             buildInputs = with pkgsStable; [
-              libtorch-bin
+              python3
+              python3Packages.torch
+              llvmPackages.openmp
               armadillo
             ];
 
             shellHook = shellHook + ''
               export PATH=$(pwd)/build/Debug:$PATH
+              export OMP_PREFIX=${pkgsStable.llvmPackages.openmp.dev}
+              export PYTHONPATH=$(pwd)/python:$PYTHONPATH
             '';
           };
         }
