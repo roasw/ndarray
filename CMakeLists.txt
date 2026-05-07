@@ -23,6 +23,8 @@ find_package(Armadillo REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
+set(UPSAMPLE_PT2_PATH "${CMAKE_BINARY_DIR}/artifacts/upsample_model.pt2")
+
 add_library(ndarray SHARED src/container/ndarray_float.cpp)
 target_include_directories(
     ndarray
@@ -42,7 +44,6 @@ target_include_directories(
 )
 target_link_libraries(upsample_algorithm PUBLIC ndarray ${TORCH_LIBRARIES})
 
-set(UPSAMPLE_PT2_PATH "${CMAKE_BINARY_DIR}/artifacts/upsample_model.pt2")
 add_custom_command(
     OUTPUT ${UPSAMPLE_PT2_PATH}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/artifacts
@@ -51,6 +52,23 @@ add_custom_command(
     VERBATIM
 )
 add_custom_target(upsample_pt2 ALL DEPENDS ${UPSAMPLE_PT2_PATH})
+
+set(PYTHON_RUNTIME_LIB_DIR "")
+get_filename_component(PYTHON3_LIB_PARENT_DIR "${Python3_LIBRARIES}" DIRECTORY)
+if(PYTHON3_LIB_PARENT_DIR)
+    set(PYTHON_RUNTIME_LIB_DIR "${PYTHON3_LIB_PARENT_DIR}")
+endif()
+
+set(PYTHON_FREE_ENV
+    "PYTHONHOME="
+    "PYTHONPATH="
+    "PYTHONSTARTUP="
+    "PYTHONUSERBASE="
+    "PYTHONNOUSERSITE=1"
+)
+if(PYTHON_RUNTIME_LIB_DIR)
+    list(APPEND PYTHON_FREE_ENV "DYLD_LIBRARY_PATH=${PYTHON_RUNTIME_LIB_DIR}")
+endif()
 
 enable_testing()
 add_subdirectory(tests)
