@@ -1,5 +1,4 @@
-#ifndef NDARRAY_HPP
-#define NDARRAY_HPP
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -88,5 +87,3 @@ template <typename T> class ndarray {
 };
 
 } // namespace ndarray
-
-#endif // NDARRAY_HPP

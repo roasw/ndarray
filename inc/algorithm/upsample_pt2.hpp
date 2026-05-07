@@ -1,5 +1,4 @@
-#ifndef UPSAMPLE_PT2_HPP
-#define UPSAMPLE_PT2_HPP
+#pragma once
 
 #include <string>
 
@@ -20,5 +19,3 @@ class UpsamplePt2 {
 };
 
 } // namespace algorithm
-
-#endif // UPSAMPLE_PT2_HPP

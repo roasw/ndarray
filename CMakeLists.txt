@@ -53,7 +53,7 @@ add_custom_command(
 add_custom_target(upsample_pt2 ALL DEPENDS ${UPSAMPLE_PT2_PATH})
 
 enable_testing()
-add_subdirectory(test)
+add_subdirectory(tests)
 
 add_test(
     NAME python_ndarray_dlpack_bridge

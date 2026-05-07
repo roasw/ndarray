@@ -13,7 +13,10 @@ A C++/Python project that provides:
 
 - **Headers**: `inc/container` (`ndarray`), `inc/algorithm` (upsampling).
 - **Source**: `src/container`, `src/algorithm`.
-- **Tests**: `test/`.
+- **Tests**: `tests/`, organized by subfolders:
+  - `tests/demo`
+  - `tests/ndarray`
+  - `tests/algorithm` (future)
 
 ## Development & Workflow
 
@@ -40,6 +43,7 @@ Tests are built and run alongside the main project. After making changes, always
 ### Formatting & Naming
 
 - **C++ Formatting**: Follow existing patterns.
+- **Header Guards**: Use `#pragma once` only (no traditional include guards).
 - **Header Order**: STL, empty line, third-party, empty line, project headers.
 - **Private Members**: `m_` prefix + lowerCamelCase (e.g., `m_data`, `m_shape`).
 - **Methods**: UpperCamelCase (e.g., `GetShape()`, `ToArmadillo()`).
