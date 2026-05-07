@@ -69,6 +69,9 @@ template <typename T> class ndarray {
     // managed_tensor->deleter(managed_tensor).
     DLManagedTensor *ToDLPack() const;
 
+    // Takes ownership of a DLManagedTensor and wraps it in ndarray.
+    static ndarray FromDLPack(DLManagedTensor *managed_tensor);
+
     ndarray<T> Add(const ndarray<T> &other) const;
     ndarray<T> Subtract(const ndarray<T> &other) const;
     ndarray<T> Multiply(const ndarray<T> &other) const;

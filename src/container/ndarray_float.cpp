@@ -77,6 +77,20 @@ void ViewDeleter(DLManagedTensor *mt) {
     delete mt;
 }
 
+void ManagedTensorDeleter(DLManagedTensor *mt) {
+    if (!mt) {
+        return;
+    }
+    if (mt->deleter) {
+        mt->deleter(mt);
+        return;
+    }
+
+    delete[] mt->dl_tensor.shape;
+    delete[] mt->dl_tensor.strides;
+    delete mt;
+}
+
 // Allocates a fresh owning DLManagedTensor for the given shape and device.
 // Column-major (Fortran) strides are set for Armadillo compatibility.
 std::shared_ptr<DLManagedTensor>
@@ -334,6 +348,24 @@ template <> DLManagedTensor *ndarray<float>::ToDLPack() const {
     mt->deleter = ViewDeleter;
 
     return mt;
+}
+
+template <>
+ndarray<float> ndarray<float>::FromDLPack(DLManagedTensor *managed_tensor) {
+    if (!managed_tensor) {
+        return ndarray<float>();
+    }
+
+    const auto &t = managed_tensor->dl_tensor;
+    const bool is_float32 =
+        t.dtype.code == kDLFloat && t.dtype.bits == 32 && t.dtype.lanes == 1;
+    if (!is_float32) {
+        ManagedTensorDeleter(managed_tensor);
+        throw std::runtime_error("FromDLPack expects float32 tensor");
+    }
+
+    return ndarray<float>(
+        std::shared_ptr<DLManagedTensor>(managed_tensor, ManagedTensorDeleter));
 }
 
 // ---------------------------------------------------------------------------
