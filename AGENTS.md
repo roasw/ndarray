@@ -38,6 +38,8 @@ Tests are built and run alongside the main project. After making changes, always
 1. **Build**: `cmake --build build/Debug`
 1. **Test**: `ctest --test-dir build/Debug`
 
+For Python interop changes, include tests that verify **zero-copy** behavior (shared-memory semantics, not just value equality).
+
 ## Code Style & Conventions
 
 ### Formatting & Naming
@@ -67,6 +69,7 @@ Run `pre-commit run --all` to execute all linters. The configured linters can be
 - Memory managed via DLPack with LibTorch's `c10` allocator.
 - Maintain NumPy compatibility.
 - Python wrapper acts as a drop-in replacement for `torch.array`.
+- Enforce zero-copy interop between `ndarray` and Python-native arrays (`torch`, `numpy`) through DLPack.
 
 ### DLPack & Column-Major Layout
 

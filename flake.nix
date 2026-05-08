@@ -77,6 +77,7 @@
             buildInputs = with pkgsStable; [
               python3
               python3Packages.torch
+              python3Packages.pybind11
               llvmPackages.openmp
               armadillo
             ];

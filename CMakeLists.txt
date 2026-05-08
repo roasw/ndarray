@@ -3,7 +3,7 @@ project(ndarray LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
 if(NOT Torch_DIR)
     execute_process(
@@ -18,8 +18,22 @@ if(NOT Torch_DIR)
     endif()
 endif()
 
+if(NOT pybind11_DIR)
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} -m pybind11 --cmakedir
+        OUTPUT_VARIABLE PYBIND11_CMAKE_DIR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE PYBIND11_CMAKE_QUERY_STATUS
+    )
+
+    if(PYBIND11_CMAKE_QUERY_STATUS EQUAL 0 AND PYBIND11_CMAKE_DIR)
+        list(PREPEND CMAKE_PREFIX_PATH "${PYBIND11_CMAKE_DIR}")
+    endif()
+endif()
+
 find_package(Torch REQUIRED)
 find_package(Armadillo REQUIRED)
+find_package(pybind11 CONFIG REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
@@ -43,6 +57,17 @@ target_include_directories(
         ${TORCH_INCLUDE_DIRS}
 )
 target_link_libraries(upsample_algorithm PUBLIC ndarray ${TORCH_LIBRARIES})
+
+pybind11_add_module(_ndarray MODULE src/python/py_ndarray.cpp)
+target_include_directories(
+    _ndarray
+    PRIVATE
+        inc
+        ${TORCH_INCLUDE_DIRS}
+        ${Python3_INCLUDE_DIRS}
+)
+target_link_libraries(_ndarray PRIVATE ndarray ${TORCH_LIBRARIES})
+set_target_properties(_ndarray PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python)
 
 add_custom_command(
     OUTPUT ${UPSAMPLE_PT2_PATH}
@@ -70,6 +95,10 @@ if(PYTHON_RUNTIME_LIB_DIR)
     list(APPEND PYTHON_FREE_ENV "DYLD_LIBRARY_PATH=${PYTHON_RUNTIME_LIB_DIR}")
 endif()
 
+set(PYTHON_TEST_ENV
+    "PYTHONPATH=${CMAKE_BINARY_DIR}/python:${CMAKE_SOURCE_DIR}/python:$ENV{PYTHONPATH}"
+)
+
 enable_testing()
 add_subdirectory(tests)
 
@@ -77,7 +106,9 @@ add_test(
     NAME python_ndarray_dlpack_bridge
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/tests/test_ndarray_dlpack_bridge.py
 )
+set_tests_properties(python_ndarray_dlpack_bridge PROPERTIES ENVIRONMENT "${PYTHON_TEST_ENV}")
 add_test(
     NAME python_upsample_pt2
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/tests/test_upsample_pt2.py --package ${UPSAMPLE_PT2_PATH}
 )
+set_tests_properties(python_upsample_pt2 PROPERTIES ENVIRONMENT "${PYTHON_TEST_ENV}")
