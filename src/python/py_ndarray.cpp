@@ -136,8 +136,13 @@ PYBIND11_MODULE(_ndarray, module) {
                    ", device=cpu)";
         });
 
-    cls.def("__torch_function__", &TorchFunction, py::arg("func"),
-            py::arg("types"), py::arg("args"), py::arg("kwargs") = py::none());
+    py::object classmethod_obj =
+        py::module::import("builtins").attr("classmethod");
+    py::object torch_function =
+        py::cpp_function(&TorchFunction, py::name("__torch_function__"),
+                         py::arg("cls"), py::arg("func"), py::arg("types"),
+                         py::arg("args"), py::arg("kwargs") = py::none());
+    cls.attr("__torch_function__") = classmethod_obj(torch_function);
 
     module.def("from_torch", &FromTorchTensor, py::arg("tensor"));
     module.def("to_torch", &ToTorchTensor, py::arg("array"));
