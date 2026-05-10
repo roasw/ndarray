@@ -5,7 +5,10 @@ from __future__ import annotations
 import argparse
 import ast
 import importlib
+import shutil
 import sys
+import tempfile
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +33,11 @@ def parse_args() -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Dump exported (uncompiled) graph as plain text",
+    )
+    parser.add_argument(
+        "--mode",
+        default="debug",
+        help="Packaging mode: debug or release (default: debug)",
     )
     return parser.parse_args()
 
@@ -78,6 +86,13 @@ def validate_export_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def normalize_mode(mode: str) -> str:
+    normalized = mode.strip().lower()
+    if normalized not in {"debug", "release"}:
+        raise RuntimeError("--mode must be either 'debug' or 'release'")
+    return normalized
+
+
 def dump_exported_graph(name: str, module: Any, output_dir: Path) -> None:
     dump_path = output_dir / f"{name}.exported.txt"
     graph_module = getattr(module, "graph_module", None)
@@ -108,8 +123,52 @@ def dump_exported_graph(name: str, module: Any, output_dir: Path) -> None:
     )
 
 
+def strip_cpp_sources_in_package(package_path: Path) -> None:
+    tmp_dir = tempfile.mkdtemp(dir=str(package_path.parent))
+    try:
+        rewritten = Path(tmp_dir) / "rewritten.pt2"
+        with (
+            zipfile.ZipFile(package_path, "r") as zin,
+            zipfile.ZipFile(rewritten, "w", compression=zipfile.ZIP_STORED) as zout,
+        ):
+            for name in zin.namelist():
+                if name.endswith(".cpp"):
+                    zout.writestr(name, "// source stripped in release mode\n")
+                    continue
+                zout.writestr(name, zin.read(name))
+        shutil.move(str(rewritten), str(package_path))
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def verify_package_mode(package_path: Path, mode: str) -> None:
+    with zipfile.ZipFile(package_path, "r") as zf:
+        cpp_entries = [name for name in zf.namelist() if name.endswith(".cpp")]
+
+        if mode == "debug":
+            if not cpp_entries:
+                raise RuntimeError(
+                    f"Debug mode expected .cpp sources in {package_path}"
+                )
+            if all(
+                b"source stripped in release mode" in zf.read(name)
+                for name in cpp_entries
+            ):
+                raise RuntimeError(
+                    f"Debug mode found stripped .cpp sources in {package_path}"
+                )
+            return
+
+        # release mode
+        for name in cpp_entries:
+            data = zf.read(name)
+            if b"source stripped in release mode" not in data:
+                raise RuntimeError(f"Release mode found unstripped source file: {name}")
+
+
 def main() -> int:
     args = parse_args()
+    mode = normalize_mode(args.mode)
     config = parse_config(args.config)
     payload = load_export(args.algorithm_module, args.algorithm_class, config)
     modules = validate_export_payload(payload)
@@ -122,6 +181,9 @@ def main() -> int:
         torch._inductor.aoti_compile_and_package(
             modules[name], package_path=str(package_path)
         )
+        if mode == "release":
+            strip_cpp_sources_in_package(package_path)
+        verify_package_mode(package_path, mode)
 
     return 0
 

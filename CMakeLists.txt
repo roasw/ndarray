@@ -97,6 +97,7 @@ add_aoti_compile_target(
     ALGORITHM_MODULE python.algorithm.upsample_2d_fourier
     ALGORITHM_CLASS Upsample2DFourier
     OUTPUT_DIR ${CMAKE_BINARY_DIR}/artifacts
+    MODE ${CMAKE_BUILD_TYPE}
     OUTPUTS
         ${UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH}
         ${UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH}

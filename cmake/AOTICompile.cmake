@@ -1,6 +1,6 @@
 function(add_aoti_compile_target)
     set(options)
-    set(one_value_args TARGET ALGORITHM_MODULE ALGORITHM_CLASS OUTPUT_DIR)
+    set(one_value_args TARGET ALGORITHM_MODULE ALGORITHM_CLASS OUTPUT_DIR MODE)
     set(multi_value_args CONFIG OUTPUTS DEPENDS)
     cmake_parse_arguments(AOTI "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN})
 
@@ -20,6 +20,10 @@ function(add_aoti_compile_target)
         message(FATAL_ERROR "add_aoti_compile_target requires OUTPUTS")
     endif()
 
+    if(NOT AOTI_MODE)
+        set(AOTI_MODE debug)
+    endif()
+
     set(_config_args "")
     foreach(_cfg IN LISTS AOTI_CONFIG)
         list(APPEND _config_args --config ${_cfg})
@@ -32,6 +36,7 @@ function(add_aoti_compile_target)
             --algorithm-module ${AOTI_ALGORITHM_MODULE}
             --algorithm-class ${AOTI_ALGORITHM_CLASS}
             --output-dir ${AOTI_OUTPUT_DIR}
+            --mode ${AOTI_MODE}
             ${_config_args}
         DEPENDS
             ${CMAKE_SOURCE_DIR}/tools/aoti-compile.py
