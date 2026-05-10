@@ -17,7 +17,8 @@ target_link_libraries(
 target_compile_definitions(
     upsample_2d_fourier_runtime_test
     PRIVATE
-        UPSAMPLE_2D_FOURIER_MODEL_PATH="${UPSAMPLE_2D_FOURIER_MODEL_PATH}"
+        UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH="${UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH}"
+        UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH="${UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH}"
 )
 add_dependencies(upsample_2d_fourier_runtime_test upsample_2d_fourier_model)
 

@@ -15,7 +15,8 @@ from ndarray import from_torch
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate upsample .pt2 package")
-    parser.add_argument("--package", type=Path, required=True)
+    parser.add_argument("--package-f32", type=Path, required=True)
+    parser.add_argument("--package-f64", type=Path, required=True)
     return parser.parse_args()
 
 
@@ -23,18 +24,18 @@ def upsample_2d_fourier(input_tensor: torch.Tensor, factor: int = 2) -> torch.Te
     h, w = input_tensor.shape
     spec = torch.fft.fft2(input_tensor)
     out = torch.fft.ifft2(spec, s=(h * factor, w * factor))
-    return (out.real * input_tensor.new_tensor(float(factor * factor))).to(
-        torch.float32
-    )
+    return out.real * input_tensor.new_tensor(float(factor * factor))
 
 
 class Upsample2DFourierTests(unittest.TestCase):
-    compiled: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+    compiled_f32: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+    compiled_f64: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
     @classmethod
     def setUpClass(cls):
         args = parse_args()
-        cls.compiled = torch._inductor.aoti_load_package(str(args.package))
+        cls.compiled_f32 = torch._inductor.aoti_load_package(str(args.package_f32))
+        cls.compiled_f64 = torch._inductor.aoti_load_package(str(args.package_f64))
 
     def _make_inputs(self):
         py_input = torch.tensor(
@@ -54,12 +55,12 @@ class Upsample2DFourierTests(unittest.TestCase):
 
     def test_multiple_shapes_match_reference(self):
         py_shapes = [(3, 5), (4, 6), (7, 9), (8, 11), (15, 17)]
-        self.assertIsNotNone(self.__class__.compiled)
+        self.assertIsNotNone(self.__class__.compiled_f32)
 
         for h, w in py_shapes:
             py_input = torch.randn(h, w, dtype=torch.float32)
             py_expected = upsample_2d_fourier(py_input)
-            py_output = self.__class__.compiled(py_input, self._factor_token(2))
+            py_output = self.__class__.compiled_f32(py_input, self._factor_token(2))
             self.assertTrue(
                 torch.allclose(py_output, py_expected, atol=1e-4, rtol=1e-4)
             )
@@ -68,33 +69,44 @@ class Upsample2DFourierTests(unittest.TestCase):
             self.assertTrue(torch.allclose(py_sampled, py_input, atol=1e-4, rtol=1e-4))
 
     def test_invalid_rank_is_rejected(self):
-        self.assertIsNotNone(self.__class__.compiled)
+        self.assertIsNotNone(self.__class__.compiled_f32)
         py_input = torch.randn(1, 4, 6, dtype=torch.float32)
         with self.assertRaises(Exception):
-            _ = self.__class__.compiled(py_input, self._factor_token(2))
+            _ = self.__class__.compiled_f32(py_input, self._factor_token(2))
 
     def test_factor_4_matches_reference(self):
-        self.assertIsNotNone(self.__class__.compiled)
+        self.assertIsNotNone(self.__class__.compiled_f32)
         py_input = torch.randn(5, 7, dtype=torch.float32)
         factor = 4
         py_expected = upsample_2d_fourier(py_input, factor=factor)
-        py_output = self.__class__.compiled(py_input, self._factor_token(factor))
+        py_output = self.__class__.compiled_f32(py_input, self._factor_token(factor))
         self.assertTrue(torch.allclose(py_output, py_expected, atol=1e-4, rtol=1e-4))
 
         py_sampled = py_output[::factor, ::factor]
         self.assertTrue(torch.allclose(py_sampled, py_input, atol=1e-4, rtol=1e-4))
 
+    def test_float64_package_matches_reference(self):
+        self.assertIsNotNone(self.__class__.compiled_f64)
+        py_input = torch.randn(5, 7, dtype=torch.float64)
+        factor = 4
+        py_expected = upsample_2d_fourier(py_input, factor=factor)
+        py_output = self.__class__.compiled_f64(py_input, self._factor_token(factor))
+        self.assertTrue(torch.allclose(py_output, py_expected, atol=1e-10, rtol=1e-10))
+
+        py_sampled = py_output[::factor, ::factor]
+        self.assertTrue(torch.allclose(py_sampled, py_input, atol=1e-10, rtol=1e-10))
+
     def test_matches_torch_input(self):
         py_input, py_expected = self._make_inputs()
-        self.assertIsNotNone(self.__class__.compiled)
-        py_output = self.__class__.compiled(py_input, self._factor_token(2))
+        self.assertIsNotNone(self.__class__.compiled_f32)
+        py_output = self.__class__.compiled_f32(py_input, self._factor_token(2))
         self.assertTrue(torch.allclose(py_output, py_expected, atol=1e-4, rtol=1e-4))
 
     def test_matches_cpp_ndarray_input(self):
         py_input, py_expected = self._make_inputs()
-        self.assertIsNotNone(self.__class__.compiled)
+        self.assertIsNotNone(self.__class__.compiled_f32)
         cpp_input = from_torch(py_input)
-        py_output = self.__class__.compiled(
+        py_output = self.__class__.compiled_f32(
             torch.utils.dlpack.from_dlpack(cpp_input), self._factor_token(2)
         )
         self.assertTrue(torch.allclose(py_output, py_expected, atol=1e-4, rtol=1e-4))

@@ -42,15 +42,18 @@ include(cmake/AOTICompile.cmake)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
-set(UPSAMPLE_2D_FOURIER_MODEL_PATH
-    "${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_model.pt2"
+set(UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH
+    "${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_cpu_f32_model.pt2"
+)
+set(UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH
+    "${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_cpu_f64_model.pt2"
 )
 
 #################
 # Build targets #
 #################
 
-add_library(ndarray SHARED src/container/ndarray_float.cpp)
+add_library(ndarray SHARED src/container/ndarray_typed.cpp)
 target_include_directories(
     ndarray
     PUBLIC
@@ -94,7 +97,9 @@ add_aoti_compile_target(
     ALGORITHM_MODULE python.algorithm.upsample_2d_fourier
     ALGORITHM_CLASS Upsample2DFourier
     OUTPUT_DIR ${CMAKE_BINARY_DIR}/artifacts
-    OUTPUTS ${UPSAMPLE_2D_FOURIER_MODEL_PATH}
+    OUTPUTS
+        ${UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH}
+        ${UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH}
     CONFIG max_factor=8
     DEPENDS ${CMAKE_SOURCE_DIR}/python/algorithm/upsample_2d_fourier.py
 )
@@ -134,7 +139,7 @@ add_test(
 set_tests_properties(python_ndarray_dlpack_bridge PROPERTIES ENVIRONMENT "${PYTHON_TEST_ENV}")
 add_test(
     NAME python_upsample_2d_fourier
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/tests/test_upsample_2d_fourier.py --package ${UPSAMPLE_2D_FOURIER_MODEL_PATH}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/tests/test_upsample_2d_fourier.py --package-f32 ${UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH} --package-f64 ${UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH}
 )
 set_tests_properties(
     python_upsample_2d_fourier

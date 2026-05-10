@@ -11,15 +11,21 @@ namespace algorithm {
 
 class Upsample2DFourier {
   public:
-    explicit Upsample2DFourier(std::string package_path,
+    explicit Upsample2DFourier(std::string package_path_float,
+                               std::string package_path_double,
                                int64_t upsample_factor = 2);
 
     ndarray::ndarray<float> Run(const ndarray::ndarray<float> &input) const;
+    ndarray::ndarray<double> Run(const ndarray::ndarray<double> &input) const;
 
     static bool SupportsInputShape(const std::vector<int64_t> &shape);
 
   private:
-    std::string m_packagePath;
+    template <typename T>
+    ndarray::ndarray<T> RunTyped(const ndarray::ndarray<T> &input) const;
+
+    std::string m_packagePathFloat;
+    std::string m_packagePathDouble;
     int64_t m_upsampleFactor;
 };
 
