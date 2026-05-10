@@ -39,6 +39,9 @@ find_package(Armadillo REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 
 include(cmake/AOTICompile.cmake)
+include(cmake/AddAlgorithmLibrary.cmake)
+include(cmake/AddTorchKernelLibrary.cmake)
+include(cmake/AddPythonTestCase.cmake)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
@@ -69,45 +72,18 @@ target_include_directories(
 )
 target_link_libraries(ndarray PUBLIC ${TORCH_LIBRARIES} ${ARMADILLO_LIBRARIES})
 
-add_library(upsample_2d_fourier_algorithm SHARED src/algorithm/upsample_2d_fourier.cpp)
-target_include_directories(
+add_algorithm_library(
     upsample_2d_fourier_algorithm
-    PUBLIC
-        inc
-        ${TORCH_INCLUDE_DIRS}
+    src/algorithm/upsample_2d_fourier.cpp
 )
-target_link_libraries(
-    upsample_2d_fourier_algorithm
-    PUBLIC
-        ndarray
-        ${TORCH_LIBRARIES}
-)
-
-add_library(
+add_algorithm_library(
     upsample_2d_fourier_kernel_algorithm
-    SHARED
-        src/algorithm/upsample_2d_fourier_kernel.cpp
+    src/algorithm/upsample_2d_fourier_kernel.cpp
 )
-target_include_directories(
-    upsample_2d_fourier_kernel_algorithm
-    PUBLIC
-        inc
-        ${TORCH_INCLUDE_DIRS}
-)
-target_link_libraries(
-    upsample_2d_fourier_kernel_algorithm
-    PUBLIC
-        ndarray
-        ${TORCH_LIBRARIES}
-)
-
-add_library(upsample_2d_fourier_cpu_kernel SHARED src/kernel/upsample_2d_fourier_cpu.cpp)
-target_include_directories(
+add_torch_kernel_library(
     upsample_2d_fourier_cpu_kernel
-    PUBLIC
-        ${TORCH_INCLUDE_DIRS}
+    src/kernel/upsample_2d_fourier_cpu.cpp
 )
-target_link_libraries(upsample_2d_fourier_cpu_kernel PUBLIC ${TORCH_LIBRARIES})
 
 pybind11_add_module(_ndarray MODULE src/python/py_ndarray.cpp)
 target_include_directories(
@@ -181,35 +157,31 @@ set(PYTHON_TEST_ENV
 enable_testing()
 add_subdirectory(tests)
 
-add_test(
-    NAME python_ndarray_dlpack_bridge
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/tests/test_ndarray_dlpack_bridge.py
+add_python_test_case(
+    python_ndarray_dlpack_bridge
+    python/tests/test_ndarray_dlpack_bridge.py
 )
-set_tests_properties(python_ndarray_dlpack_bridge PROPERTIES ENVIRONMENT "${PYTHON_TEST_ENV}")
-add_test(
-    NAME python_upsample_2d_fourier
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/tests/test_upsample_2d_fourier.py --package-f32 ${UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH} --package-f64 ${UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH}
-)
-set_tests_properties(
+add_python_test_case(
     python_upsample_2d_fourier
-    PROPERTIES
-        ENVIRONMENT "${PYTHON_TEST_ENV}"
+    python/tests/test_upsample_2d_fourier.py
+    --package-f32
+    ${UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH}
+    --package-f64
+    ${UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH}
 )
-add_test(
-    NAME python_upsample_2d_fourier_kernel
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/tests/test_upsample_2d_fourier_kernel.py --package-f32 ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH} --package-f64 ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH} --kernel-lib $<TARGET_FILE:upsample_2d_fourier_cpu_kernel>
-)
-set_tests_properties(
+add_python_test_case(
     python_upsample_2d_fourier_kernel
-    PROPERTIES
-        ENVIRONMENT "${PYTHON_TEST_ENV}"
+    python/tests/test_upsample_2d_fourier_kernel.py
+    --package-f32
+    ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH}
+    --package-f64
+    ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH}
+    --kernel-lib
+    $<TARGET_FILE:upsample_2d_fourier_cpu_kernel>
 )
-add_test(
-    NAME python_kernel_upsample_2d_fourier
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/tests/test_kernel_upsample_2d_fourier.py --kernel-lib $<TARGET_FILE:upsample_2d_fourier_cpu_kernel>
-)
-set_tests_properties(
+add_python_test_case(
     python_kernel_upsample_2d_fourier
-    PROPERTIES
-        ENVIRONMENT "${PYTHON_TEST_ENV}"
+    python/tests/test_kernel_upsample_2d_fourier.py
+    --kernel-lib
+    $<TARGET_FILE:upsample_2d_fourier_cpu_kernel>
 )
