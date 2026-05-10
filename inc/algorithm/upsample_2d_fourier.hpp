@@ -9,9 +9,10 @@
 
 namespace algorithm {
 
-class Upsample {
+class Upsample2DFourier {
   public:
-    explicit Upsample(std::string package_path);
+    explicit Upsample2DFourier(std::string package_path,
+                               int64_t upsample_factor = 2);
 
     ndarray::ndarray<float> Run(const ndarray::ndarray<float> &input) const;
 
@@ -19,6 +20,7 @@ class Upsample {
 
   private:
     std::string m_packagePath;
+    int64_t m_upsampleFactor;
 };
 
 } // namespace algorithm

@@ -4,16 +4,23 @@
 
 #include <ATen/DLConvertor.h>
 #include <ATen/Tensor.h>
+#include <ATen/ops/ones.h>
 #include <torch/csrc/inductor/aoti_package/model_package_loader.h>
 
-#include "algorithm/upsample.hpp"
+#include "algorithm/upsample_2d_fourier.hpp"
 
 namespace algorithm {
 
-Upsample::Upsample(std::string package_path)
-    : m_packagePath(std::move(package_path)) {}
+Upsample2DFourier::Upsample2DFourier(std::string package_path,
+                                     int64_t upsample_factor)
+    : m_packagePath(std::move(package_path)),
+      m_upsampleFactor(upsample_factor) {
+    if (m_upsampleFactor < 1) {
+        throw std::runtime_error("Upsample factor must be >= 1");
+    }
+}
 
-bool Upsample::SupportsInputShape(const std::vector<int64_t> &shape) {
+bool Upsample2DFourier::SupportsInputShape(const std::vector<int64_t> &shape) {
     if (shape.size() != 2) {
         return false;
     }
@@ -23,7 +30,7 @@ bool Upsample::SupportsInputShape(const std::vector<int64_t> &shape) {
 }
 
 ndarray::ndarray<float>
-Upsample::Run(const ndarray::ndarray<float> &input) const {
+Upsample2DFourier::Run(const ndarray::ndarray<float> &input) const {
     if (m_packagePath.empty()) {
         throw std::runtime_error("Upsample package path is empty");
     }
@@ -46,8 +53,11 @@ Upsample::Run(const ndarray::ndarray<float> &input) const {
         throw std::runtime_error("Upsample input must be a 2D tensor");
     }
 
+    at::Tensor factor_token =
+        at::ones({m_upsampleFactor}, at::TensorOptions().dtype(at::kFloat));
+
     auto package = torch::inductor::AOTIModelPackageLoader(m_packagePath);
-    std::vector<at::Tensor> outputs = package.run({input_tensor});
+    std::vector<at::Tensor> outputs = package.run({input_tensor, factor_token});
     if (outputs.size() != 1) {
         throw std::runtime_error(
             "Upsample model must return exactly one output");

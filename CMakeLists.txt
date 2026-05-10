@@ -37,7 +37,9 @@ find_package(pybind11 CONFIG REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
-set(UPSAMPLE_MODEL_PATH "${CMAKE_BINARY_DIR}/artifacts/upsample_model.pt2")
+set(UPSAMPLE_2D_FOURIER_MODEL_PATH
+    "${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_model.pt2"
+)
 
 add_library(ndarray SHARED src/container/ndarray_float.cpp)
 target_include_directories(
@@ -49,14 +51,19 @@ target_include_directories(
 )
 target_link_libraries(ndarray PUBLIC ${TORCH_LIBRARIES} ${ARMADILLO_LIBRARIES})
 
-add_library(upsample_algorithm SHARED src/algorithm/upsample.cpp)
+add_library(upsample_2d_fourier_algorithm SHARED src/algorithm/upsample_2d_fourier.cpp)
 target_include_directories(
-    upsample_algorithm
+    upsample_2d_fourier_algorithm
     PUBLIC
         inc
         ${TORCH_INCLUDE_DIRS}
 )
-target_link_libraries(upsample_algorithm PUBLIC ndarray ${TORCH_LIBRARIES})
+target_link_libraries(
+    upsample_2d_fourier_algorithm
+    PUBLIC
+        ndarray
+        ${TORCH_LIBRARIES}
+)
 
 pybind11_add_module(_ndarray MODULE src/python/py_ndarray.cpp)
 target_include_directories(
@@ -70,13 +77,17 @@ target_link_libraries(_ndarray PRIVATE ndarray ${TORCH_LIBRARIES})
 set_target_properties(_ndarray PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python)
 
 add_custom_command(
-    OUTPUT ${UPSAMPLE_MODEL_PATH}
+    OUTPUT ${UPSAMPLE_2D_FOURIER_MODEL_PATH}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/artifacts
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/algorithm/export_upsample.py --output ${UPSAMPLE_MODEL_PATH}
-    DEPENDS ${CMAKE_SOURCE_DIR}/python/algorithm/export_upsample.py
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/algorithm/upsample_2d_fourier.py --output ${UPSAMPLE_2D_FOURIER_MODEL_PATH}
+    DEPENDS ${CMAKE_SOURCE_DIR}/python/algorithm/upsample_2d_fourier.py
     VERBATIM
 )
-add_custom_target(upsample_model ALL DEPENDS ${UPSAMPLE_MODEL_PATH})
+add_custom_target(
+    upsample_2d_fourier_model
+    ALL
+    DEPENDS ${UPSAMPLE_2D_FOURIER_MODEL_PATH}
+)
 
 set(PYTHON_RUNTIME_LIB_DIR "")
 get_filename_component(PYTHON3_LIB_PARENT_DIR "${Python3_LIBRARIES}" DIRECTORY)
@@ -108,7 +119,11 @@ add_test(
 )
 set_tests_properties(python_ndarray_dlpack_bridge PROPERTIES ENVIRONMENT "${PYTHON_TEST_ENV}")
 add_test(
-    NAME python_upsample
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/tests/test_upsample.py --package ${UPSAMPLE_MODEL_PATH}
+    NAME python_upsample_2d_fourier
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/tests/test_upsample_2d_fourier.py --package ${UPSAMPLE_2D_FOURIER_MODEL_PATH}
 )
-set_tests_properties(python_upsample PROPERTIES ENVIRONMENT "${PYTHON_TEST_ENV}")
+set_tests_properties(
+    python_upsample_2d_fourier
+    PROPERTIES
+        ENVIRONMENT "${PYTHON_TEST_ENV}"
+)
