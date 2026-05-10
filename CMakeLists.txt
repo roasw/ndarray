@@ -77,6 +77,14 @@ target_link_libraries(
         ${TORCH_LIBRARIES}
 )
 
+add_library(upsample_2d_fourier_cpu_kernel SHARED src/kernel/upsample_2d_fourier_cpu.cpp)
+target_include_directories(
+    upsample_2d_fourier_cpu_kernel
+    PUBLIC
+        ${TORCH_INCLUDE_DIRS}
+)
+target_link_libraries(upsample_2d_fourier_cpu_kernel PUBLIC ${TORCH_LIBRARIES})
+
 pybind11_add_module(_ndarray MODULE src/python/py_ndarray.cpp)
 target_include_directories(
     _ndarray
@@ -144,6 +152,15 @@ add_test(
 )
 set_tests_properties(
     python_upsample_2d_fourier
+    PROPERTIES
+        ENVIRONMENT "${PYTHON_TEST_ENV}"
+)
+add_test(
+    NAME python_kernel_upsample_2d_fourier
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/tests/test_kernel_upsample_2d_fourier.py --kernel-lib $<TARGET_FILE:upsample_2d_fourier_cpu_kernel>
+)
+set_tests_properties(
+    python_kernel_upsample_2d_fourier
     PROPERTIES
         ENVIRONMENT "${PYTHON_TEST_ENV}"
 )
