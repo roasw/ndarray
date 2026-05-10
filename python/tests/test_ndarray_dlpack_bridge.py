@@ -37,7 +37,25 @@ def main() -> int:
     assert torch.equal(to_torch(py_created), base)
 
     py_created_from_torch = ndarray.from_torch(base)
-    assert py_created_from_torch.data_ptr == base.data_ptr()
+    assert py_created_from_torch.data_ptr() == base.data_ptr()
+
+    assert py_created_from_torch.dim() == base.dim()
+    assert py_created_from_torch.ndim == base.dim()
+    assert py_created_from_torch.size() == tuple(base.shape)
+    assert py_created_from_torch.size(0) == base.size(0)
+    assert py_created_from_torch.size(-1) == base.size(-1)
+    assert py_created_from_torch.stride() == base.stride()
+    assert py_created_from_torch.stride(0) == base.stride(0)
+    assert py_created_from_torch.stride(-1) == base.stride(-1)
+    assert py_created_from_torch.numel() == base.numel()
+    assert py_created_from_torch.dtype == base.dtype
+    assert py_created_from_torch.device == base.device
+    assert py_created_from_torch.is_contiguous() is base.is_contiguous()
+
+    memory_format = torch.contiguous_format
+    assert py_created_from_torch.is_contiguous(memory_format) is base.is_contiguous(
+        memory_format=memory_format
+    )
 
     print("ndarray python DLPack bridge test passed")
     return 0
