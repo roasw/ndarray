@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.15)
 project(ndarray LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
@@ -35,11 +38,17 @@ find_package(Torch REQUIRED)
 find_package(Armadillo REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 
+include(cmake/AOTICompile.cmake)
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
 set(UPSAMPLE_2D_FOURIER_MODEL_PATH
     "${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_model.pt2"
 )
+
+#################
+# Build targets #
+#################
 
 add_library(ndarray SHARED src/container/ndarray_float.cpp)
 target_include_directories(
@@ -76,18 +85,23 @@ target_include_directories(
 target_link_libraries(_ndarray PRIVATE ndarray ${TORCH_LIBRARIES})
 set_target_properties(_ndarray PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python)
 
-add_custom_command(
-    OUTPUT ${UPSAMPLE_2D_FOURIER_MODEL_PATH}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/artifacts
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/algorithm/upsample_2d_fourier.py --output ${UPSAMPLE_2D_FOURIER_MODEL_PATH}
+################
+# AOTI exports #
+################
+
+add_aoti_compile_target(
+    TARGET upsample_2d_fourier_model
+    ALGORITHM_MODULE python.algorithm.upsample_2d_fourier
+    ALGORITHM_CLASS Upsample2DFourier
+    OUTPUT_DIR ${CMAKE_BINARY_DIR}/artifacts
+    OUTPUTS ${UPSAMPLE_2D_FOURIER_MODEL_PATH}
+    CONFIG max_factor=8
     DEPENDS ${CMAKE_SOURCE_DIR}/python/algorithm/upsample_2d_fourier.py
-    VERBATIM
 )
-add_custom_target(
-    upsample_2d_fourier_model
-    ALL
-    DEPENDS ${UPSAMPLE_2D_FOURIER_MODEL_PATH}
-)
+
+##############
+# Test cases #
+##############
 
 set(PYTHON_RUNTIME_LIB_DIR "")
 get_filename_component(PYTHON3_LIB_PARENT_DIR "${Python3_LIBRARIES}" DIRECTORY)

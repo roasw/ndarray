@@ -83,7 +83,7 @@
             ];
 
             shellHook = shellHook + ''
-              export PATH=$(pwd)/build/Debug:$PATH
+              export PATH=$(pwd)/tools:$(pwd)/build/Debug:$PATH
               export OMP_PREFIX=${pkgsStable.llvmPackages.openmp.dev}
               export PYTHONPATH=$(pwd)/python:$PYTHONPATH
             '';
