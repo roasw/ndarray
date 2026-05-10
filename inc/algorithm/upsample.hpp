@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include <ATen/dlpack.h>
 
@@ -8,11 +9,13 @@
 
 namespace algorithm {
 
-class UpsamplePt2 {
+class Upsample {
   public:
-    explicit UpsamplePt2(std::string package_path);
+    explicit Upsample(std::string package_path);
 
     ndarray::ndarray<float> Run(const ndarray::ndarray<float> &input) const;
+
+    static bool SupportsInputShape(const std::vector<int64_t> &shape);
 
   private:
     std::string m_packagePath;
