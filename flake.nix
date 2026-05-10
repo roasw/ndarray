@@ -74,19 +74,27 @@
                 ]
               );
 
-            buildInputs = with pkgsStable; [
-              python3
-              python3Packages.torch
-              python3Packages.pybind11
-              llvmPackages.openmp
-              armadillo
-            ];
+            buildInputs =
+              with pkgsStable;
+              [
+                python3
+                python3Packages.torch
+                python3Packages.pybind11
+                armadillo
+              ]
+              ++ pkgsStable.lib.optionals pkgsStable.stdenv.isDarwin [
+                llvmPackages.openmp
+              ];
 
-            shellHook = shellHook + ''
-              export PATH=$(pwd)/tools:$(pwd)/build/Debug:$PATH
-              export OMP_PREFIX=${pkgsStable.llvmPackages.openmp.dev}
-              export PYTHONPATH=$(pwd)/python:$PYTHONPATH
-            '';
+            shellHook =
+              shellHook
+              + ''
+                export PATH=$(pwd)/tools:$(pwd)/build/Debug:$PATH
+                export PYTHONPATH=$(pwd)/python:$PYTHONPATH
+              ''
+              + pkgsStable.lib.optionalString pkgsStable.stdenv.isDarwin ''
+                export OMP_PREFIX=${pkgsStable.llvmPackages.openmp.dev}
+              '';
           };
         }
       );
