@@ -1,80 +1,43 @@
 # AGENTS.md
 
-## Project Overview
+## Scope
 
-A C++/Python project that provides:
+- `ndarray`: C++ column-major DLPack container with Python interop.
+- Upsampling pipeline: Python export -> AOTI `.pt2` -> C++ runtime.
+- New work: C++ torch CPU kernels under `src/kernel`, registered to torch and usable by AOT export/compile.
 
-1. `ndarray`: A C++ column-major DLPack container class compatible with Armadillo and `torch.array`.
-1. Upsampling algorithm: Python definition exported via `torch.compile`, compiled to a native CPU binary (`.pt2`) using `AOTIductor`, and loaded in C++.
+## Mandatory workflow
 
-**Important:** Always ask for confirmation before applying changes.
+- Always ask for confirmation before applying code changes.
+- Build/test after edits:
+  - `cmake --build build/Debug`
+  - `ctest --test-dir build/Debug --output-on-failure`
+- Run linters before commit: `pre-commit run --all`.
+- Keep zero-copy behavior as a hard requirement for ndarray/torch DLPack interop.
 
-## Project Structure
+## Project layout
 
-- **Headers**: `inc/container` (`ndarray`), `inc/algorithm` (upsampling).
-- **Source**: `src/container`, `src/algorithm`.
-- **Tests**: `tests/`, organized by subfolders:
-  - `tests/demo`
-  - `tests/ndarray`
-  - `tests/algorithm` (future)
+- Headers: `inc/container`, `inc/algorithm`.
+- Sources: `src/container`, `src/algorithm`, `src/kernel`.
+- Python: `python/algorithm`, `python/tests`.
+- Tests: `tests/demo`, `tests/ndarray`, `tests/algorithm`, `tests/kernel`.
 
-## Development & Workflow
+## Kernel constraints (torch CPU kernel)
 
-### Dependencies
+- Register custom ops with torch dispatcher (`TORCH_LIBRARY` / `TORCH_LIBRARY_IMPL`).
+- Keep kernel CPU-only for now; reserve naming for future CUDA variants.
+- Ensure Python export path can call the registered op (so `torch.export` and AOTI can compile it).
+- Add parity tests against current algorithm behavior and C++ runtime coverage.
+- Do not introduce copies across ndarray\<->torch bridges unless explicitly required.
 
-Managed by nix `devShell` in `flake.nix`. Assume the environment is already in the `devShell` (via `direnv` integration) and all dependencies are readily available.
+## Style & conventions
 
-### Build System
+- C++: existing formatting patterns, `#pragma once`, member prefix `m_`, methods `UpperCamelCase`.
+- Header include order: STL, blank, third-party, blank, project.
+- Keep public headers declaration-focused and readable.
+- `ndarray` remains templated with explicit instantiation in `.cpp`.
 
-Uses `CMakePresets.json` with Ninja.
+## Commits
 
-- **Debug**: `cmake --preset Debug && cmake --build build/Debug`
-- **Release**: `cmake --preset Release && cmake --build build/Release`
-
-### Testing & Post-Change Commands
-
-Tests are built and run alongside the main project. After making changes, always verify with:
-
-1. **Build**: `cmake --build build/Debug`
-1. **Test**: `ctest --test-dir build/Debug`
-
-For Python interop changes, include tests that verify **zero-copy** behavior (shared-memory semantics, not just value equality).
-
-## Code Style & Conventions
-
-### Formatting & Naming
-
-- **C++ Formatting**: Follow existing patterns.
-- **Header Guards**: Use `#pragma once` only (no traditional include guards).
-- **Header Order**: STL, empty line, third-party, empty line, project headers.
-- **Private Members**: `m_` prefix + lowerCamelCase (e.g., `m_data`, `m_shape`).
-- **Methods**: UpperCamelCase (e.g., `GetShape()`, `ToArmadillo()`).
-- **Python**: Run `ruff` on all files.
-
-### Pre-commit Hooks
-
-Run `pre-commit run --all` to execute all linters. The configured linters can be looked up in `flake.nix`.
-
-### Commit Messages
-
-- **Format**: `(chore|doc|fix|feat|infra|refac|revert): <description>.`
-- **Rules**: Max 72 characters, must end with a period.
-
-## Technical Notes
-
-### `ndarray` Class
-
-- Templated with explicit specializations in `.cpp` (`float`, `double`, `int`, `bool`).
-- Column-major layout for Armadillo compatibility.
-- Memory managed via DLPack with LibTorch's `c10` allocator.
-- Maintain NumPy compatibility.
-- Python wrapper acts as a drop-in replacement for `torch.array`.
-- Enforce zero-copy interop between `ndarray` and Python-native arrays (`torch`, `numpy`) through DLPack.
-
-### DLPack & Column-Major Layout
-
-For Armadillo interoperability:
-
-- Use LibTorch's `c10` allocator.
-- Set strides for column-major (Fortran) order.
-- Ensure proper memory alignment.
+- Message format: `(chore|doc|fix|feat|infra|refac|revert): <description>.`
+- Max 72 chars, must end with `.`
