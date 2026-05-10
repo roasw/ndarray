@@ -20,6 +20,15 @@ class NdarrayDlpackBridgeTests(unittest.TestCase):
         py_base, cpp_array = self._make_py_cpp_pair()
         py_bridged = to_torch(cpp_array)
         self.assertTrue(torch.equal(py_base, py_bridged))
+        self.assertEqual(py_bridged.data_ptr(), cpp_array.data_ptr())
+
+    def test_to_torch_pointer_identity(self):
+        _, cpp_array = self._make_py_cpp_pair()
+        py_bridged_a = to_torch(cpp_array)
+        py_bridged_b = to_torch(cpp_array)
+
+        self.assertEqual(py_bridged_a.data_ptr(), cpp_array.data_ptr())
+        self.assertEqual(py_bridged_b.data_ptr(), cpp_array.data_ptr())
 
     def test_zero_copy_mutation_cpp_to_py(self):
         py_base, cpp_array = self._make_py_cpp_pair()
@@ -54,8 +63,14 @@ class NdarrayDlpackBridgeTests(unittest.TestCase):
         py_base, _ = self._make_py_cpp_pair()
         cpp_created = ndarray([2, 3])
         py_created = to_torch(cpp_created)
+
+        self.assertEqual(py_created.data_ptr(), cpp_created.data_ptr())
+
         py_created[:] = py_base
-        self.assertTrue(torch.equal(to_torch(cpp_created), py_base))
+
+        py_roundtrip = to_torch(cpp_created)
+        self.assertEqual(py_roundtrip.data_ptr(), cpp_created.data_ptr())
+        self.assertTrue(torch.equal(py_roundtrip, py_base))
 
     def test_from_torch_pointer_identity(self):
         py_base, _ = self._make_py_cpp_pair()
@@ -84,6 +99,20 @@ class NdarrayDlpackBridgeTests(unittest.TestCase):
             cpp_from_torch.is_contiguous(py_memory_format),
             py_base.is_contiguous(memory_format=py_memory_format),
         )
+
+    def test_explicit_copy_ops_allocate_new_storage(self):
+        py_base, cpp_array = self._make_py_cpp_pair()
+        py_bridged = to_torch(cpp_array)
+
+        py_added = torch.add(py_bridged, py_bridged)
+        self.assertNotEqual(py_added.data_ptr(), py_bridged.data_ptr())
+
+        cpp_clone = cpp_array.clone()
+        self.assertNotEqual(cpp_clone.data_ptr(), cpp_array.data_ptr())
+
+        py_clone = to_torch(cpp_clone)
+        py_bridged[0, 0] = 999.0
+        self.assertNotEqual(float(py_clone[0, 0]), float(py_bridged[0, 0]))
 
 
 def main() -> int:
