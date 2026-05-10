@@ -6,6 +6,7 @@ from typing import Any
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class Upsample2DFourier(nn.Module):
@@ -25,8 +26,22 @@ class Upsample2DFourier(nn.Module):
 
         factor = factor_token.shape[0]
         h, w = x.shape
+        out_h, out_w = h * factor, w * factor
+
         spec = torch.fft.fft2(x)
-        out = torch.fft.ifft2(spec, s=(h * factor, w * factor))
+
+        spec_centered = torch.fft.fftshift(spec)
+        pad_h = out_h - h
+        pad_w = out_w - w
+        pad_top = pad_h // 2
+        pad_bottom = pad_h - pad_top
+        pad_left = pad_w // 2
+        pad_right = pad_w - pad_left
+
+        spec_padded = F.pad(spec_centered, (pad_left, pad_right, pad_top, pad_bottom))
+        spec_out = torch.fft.ifftshift(spec_padded)
+
+        out = torch.fft.ifft2(spec_out)
         return out.real * (factor * factor)
 
     @classmethod
@@ -35,8 +50,8 @@ class Upsample2DFourier(nn.Module):
         if max_factor < 1:
             raise RuntimeError("max_factor must be >= 1")
 
-        h_dim = torch.export.Dim("H", min=2)
-        w_dim = torch.export.Dim("W", min=2)
+        h_dim = torch.export.Dim("H", min=1)
+        w_dim = torch.export.Dim("W", min=1)
         factor_dim = torch.export.Dim("F", min=1, max=max_factor)
 
         modules: dict[str, Any] = {}

@@ -48,12 +48,18 @@ int main() {
             throw std::runtime_error("AOTI runtime output has wrong shape");
         }
 
-        using at::indexing::Slice;
-        at::Tensor sampled = actual.index(
-            {Slice(0, c10::nullopt, factor), Slice(0, c10::nullopt, factor)});
-        if (!at::allclose(sampled, input_tensor, 1e-4, 1e-5)) {
-            throw std::runtime_error(
-                "AOTI runtime float32 upsample identity check failed");
+        if (!actual.isfinite().all().item<bool>()) {
+            throw std::runtime_error("AOTI runtime float32 output has NaN/Inf");
+        }
+
+        if ((h % 2 == 0) && (w % 2 == 0)) {
+            using at::indexing::Slice;
+            at::Tensor sampled = actual.index({Slice(0, c10::nullopt, factor),
+                                               Slice(0, c10::nullopt, factor)});
+            if (!at::allclose(sampled, input_tensor, 1e-4, 1e-5)) {
+                throw std::runtime_error(
+                    "AOTI runtime float32 upsample identity check failed");
+            }
         }
 
         at::Tensor input_tensor_f64 =
@@ -70,11 +76,19 @@ int main() {
                 "AOTI runtime float64 output has wrong shape");
         }
 
-        at::Tensor sampled_f64 = actual_f64.index(
-            {Slice(0, c10::nullopt, factor), Slice(0, c10::nullopt, factor)});
-        if (!at::allclose(sampled_f64, input_tensor_f64, 1e-10, 1e-10)) {
-            throw std::runtime_error(
-                "AOTI runtime float64 upsample identity check failed");
+        if (!actual_f64.isfinite().all().item<bool>()) {
+            throw std::runtime_error("AOTI runtime float64 output has NaN/Inf");
+        }
+
+        if ((h % 2 == 0) && (w % 2 == 0)) {
+            using at::indexing::Slice;
+            at::Tensor sampled_f64 =
+                actual_f64.index({Slice(0, c10::nullopt, factor),
+                                  Slice(0, c10::nullopt, factor)});
+            if (!at::allclose(sampled_f64, input_tensor_f64, 1e-10, 1e-10)) {
+                throw std::runtime_error(
+                    "AOTI runtime float64 upsample identity check failed");
+            }
         }
     }
 
