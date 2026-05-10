@@ -48,6 +48,12 @@ set(UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH
 set(UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH
     "${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_cpu_f64_model.pt2"
 )
+set(UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH
+    "${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_kernel_cpu_f32_model.pt2"
+)
+set(UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH
+    "${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_kernel_cpu_f64_model.pt2"
+)
 
 #################
 # Build targets #
@@ -72,6 +78,24 @@ target_include_directories(
 )
 target_link_libraries(
     upsample_2d_fourier_algorithm
+    PUBLIC
+        ndarray
+        ${TORCH_LIBRARIES}
+)
+
+add_library(
+    upsample_2d_fourier_kernel_algorithm
+    SHARED
+        src/algorithm/upsample_2d_fourier_kernel.cpp
+)
+target_include_directories(
+    upsample_2d_fourier_kernel_algorithm
+    PUBLIC
+        inc
+        ${TORCH_INCLUDE_DIRS}
+)
+target_link_libraries(
+    upsample_2d_fourier_kernel_algorithm
     PUBLIC
         ndarray
         ${TORCH_LIBRARIES}
@@ -113,6 +137,22 @@ add_aoti_compile_target(
     DEPENDS ${CMAKE_SOURCE_DIR}/python/algorithm/upsample_2d_fourier.py
 )
 
+add_aoti_compile_target(
+    TARGET upsample_2d_fourier_kernel_model
+    ALGORITHM_MODULE python.algorithm.upsample_2d_fourier_kernel
+    ALGORITHM_CLASS Upsample2DFourierKernel
+    OUTPUT_DIR ${CMAKE_BINARY_DIR}/artifacts
+    MODE ${CMAKE_BUILD_TYPE}
+    OUTPUTS
+        ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH}
+        ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH}
+    CONFIG max_factor=8
+    CONFIG kernel_lib=$<TARGET_FILE:upsample_2d_fourier_cpu_kernel>
+    DEPENDS
+        ${CMAKE_SOURCE_DIR}/python/algorithm/upsample_2d_fourier_kernel.py
+        upsample_2d_fourier_cpu_kernel
+)
+
 ##############
 # Test cases #
 ##############
@@ -152,6 +192,15 @@ add_test(
 )
 set_tests_properties(
     python_upsample_2d_fourier
+    PROPERTIES
+        ENVIRONMENT "${PYTHON_TEST_ENV}"
+)
+add_test(
+    NAME python_upsample_2d_fourier_kernel
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/tests/test_upsample_2d_fourier_kernel.py --package-f32 ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH} --package-f64 ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH} --kernel-lib $<TARGET_FILE:upsample_2d_fourier_cpu_kernel>
+)
+set_tests_properties(
+    python_upsample_2d_fourier_kernel
     PROPERTIES
         ENVIRONMENT "${PYTHON_TEST_ENV}"
 )

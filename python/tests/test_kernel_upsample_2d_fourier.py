@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import unittest
+from typing import Any
 
 import torch
 
@@ -28,6 +29,10 @@ class KernelUpsample2DFourierTests(unittest.TestCase):
         cls.eager_f32 = Upsample2DFourier(input_dtype=torch.float32).eval()
         cls.eager_f64 = Upsample2DFourier(input_dtype=torch.float64).eval()
 
+    @staticmethod
+    def _kernel_op() -> Any:
+        return getattr(torch.ops.ndarray, "upsample_2d_fourier_cpu")
+
     def _assert_match(self, shape: tuple[int, int], factor: int, dtype: torch.dtype):
         py_input = torch.randn(*shape, dtype=dtype)
         py_factor_token = torch.ones(factor, dtype=torch.float32)
@@ -38,7 +43,8 @@ class KernelUpsample2DFourierTests(unittest.TestCase):
             else self.__class__.eager_f64
         )
         py_expected = eager(py_input, py_factor_token)
-        py_output = torch.ops.ndarray.upsample_2d_fourier_cpu(py_input, factor)
+        op = self._kernel_op()
+        py_output = op(py_input, py_factor_token)
 
         self.assertEqual(py_output.dtype, dtype)
         self.assertEqual(tuple(py_output.shape), (shape[0] * factor, shape[1] * factor))
@@ -64,13 +70,15 @@ class KernelUpsample2DFourierTests(unittest.TestCase):
 
     def test_invalid_rank_rejected(self):
         bad_input = torch.randn(1, 4, 6, dtype=torch.float32)
+        op = self._kernel_op()
         with self.assertRaises(RuntimeError):
-            _ = torch.ops.ndarray.upsample_2d_fourier_cpu(bad_input, 2)
+            _ = op(bad_input, torch.ones(2, dtype=torch.float32))
 
     def test_invalid_factor_rejected(self):
         py_input = torch.randn(4, 6, dtype=torch.float32)
+        op = self._kernel_op()
         with self.assertRaises(RuntimeError):
-            _ = torch.ops.ndarray.upsample_2d_fourier_cpu(py_input, 0)
+            _ = op(py_input, torch.ones(0, dtype=torch.float32))
 
 
 def main() -> int:

@@ -24,3 +24,34 @@ add_dependencies(upsample_2d_fourier_runtime_test upsample_2d_fourier_model)
 
 add_test(NAME upsample_2d_fourier_runtime COMMAND upsample_2d_fourier_runtime_test)
 set_tests_properties(upsample_2d_fourier_runtime PROPERTIES ENVIRONMENT "${PYTHON_FREE_ENV}")
+
+add_executable(
+    upsample_2d_fourier_kernel_runtime_test
+    algorithm/upsample_2d_fourier_kernel_runtime.cpp
+)
+target_link_libraries(
+    upsample_2d_fourier_kernel_runtime_test
+    upsample_2d_fourier_kernel_algorithm
+    upsample_2d_fourier_cpu_kernel
+    ${TORCH_LIBRARIES}
+)
+target_compile_definitions(
+    upsample_2d_fourier_kernel_runtime_test
+    PRIVATE
+        UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH="${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH}"
+        UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH="${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH}"
+)
+add_dependencies(
+    upsample_2d_fourier_kernel_runtime_test
+    upsample_2d_fourier_kernel_model
+)
+
+add_test(
+    NAME upsample_2d_fourier_kernel_runtime
+    COMMAND upsample_2d_fourier_kernel_runtime_test
+)
+set_tests_properties(
+    upsample_2d_fourier_kernel_runtime
+    PROPERTIES
+        ENVIRONMENT "${PYTHON_FREE_ENV}"
+)
