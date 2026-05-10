@@ -3,10 +3,10 @@ target_link_libraries(dlpack_test ndarray)
 
 add_test(NAME dlpack_column_major COMMAND dlpack_test)
 
-add_executable(ndarray_float_test ndarray/ndarray_float.cpp)
-target_link_libraries(ndarray_float_test ndarray)
+add_executable(ndarray_typed_test ndarray/ndarray_typed.cpp)
+target_link_libraries(ndarray_typed_test ndarray)
 
-add_test(NAME ndarray_float COMMAND ndarray_float_test)
+add_test(NAME ndarray_typed COMMAND ndarray_typed_test)
 
 add_executable(upsample_2d_fourier_runtime_test algorithm/upsample_2d_fourier_runtime.cpp)
 target_link_libraries(
