@@ -8,6 +8,8 @@
 #include <type_traits>
 #include <vector>
 
+#include <ATen/DLConvertor.h>
+#include <ATen/Tensor.h>
 #include <ATen/dlpack.h>
 #include <armadillo>
 
@@ -198,6 +200,24 @@ template <typename T> void TestFromDlpackRoundtrip() {
                  "FromDLPack should preserve zero-copy behavior");
 }
 
+template <typename T> void TestTorchFromDlpackZeroCopy() {
+    ndarray::ndarray<T> a({2, 3});
+    a.At(int64_t(0), int64_t(0)) = static_cast<T>(3);
+
+    at::Tensor t = at::fromDLPack(a.ToDLPack());
+    require(t.data_ptr() == a.GetData(),
+            "torch::fromDLPack data pointer must alias ndarray data");
+
+    T *ptr = t.data_ptr<T>();
+    ptr[0] = static_cast<T>(17);
+    require_near(a.At(int64_t(0), int64_t(0)), static_cast<T>(17),
+                 "torch write-through should update ndarray");
+
+    a.At(int64_t(1), int64_t(0)) = static_cast<T>(29);
+    require_near(ptr[1], static_cast<T>(29),
+                 "ndarray write-through should update torch view");
+}
+
 template <typename T> void RunTypedSuite(Counters &counters) {
     const std::string prefix = std::string("[") + TypeName<T>::value + "] ";
     RunCase(prefix + "default_construction", counters,
@@ -220,6 +240,8 @@ template <typename T> void RunTypedSuite(Counters &counters) {
             [] { TestArithmeticAddMultiply<T>(); });
     RunCase(prefix + "from_dlpack_roundtrip", counters,
             [] { TestFromDlpackRoundtrip<T>(); });
+    RunCase(prefix + "torch_from_dlpack_zero_copy", counters,
+            [] { TestTorchFromDlpackZeroCopy<T>(); });
 }
 
 } // namespace
