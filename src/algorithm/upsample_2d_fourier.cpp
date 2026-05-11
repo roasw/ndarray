@@ -1,6 +1,5 @@
 #include <stdexcept>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 #include <ATen/DLConvertor.h>
@@ -13,17 +12,6 @@
 
 namespace algorithm {
 
-Upsample2DFourier::Upsample2DFourier(std::string package_path_float,
-                                     std::string package_path_double,
-                                     int64_t upsample_factor)
-    : m_packagePathFloat(std::move(package_path_float)),
-      m_packagePathDouble(std::move(package_path_double)),
-      m_upsampleFactor(upsample_factor) {
-    if (m_upsampleFactor < 1) {
-        throw std::runtime_error("Upsample factor must be >= 1");
-    }
-}
-
 Upsample2DFourier::Upsample2DFourier(std::string metadata_path,
                                      int64_t upsample_factor)
     : m_upsampleFactor(upsample_factor) {
@@ -31,11 +19,8 @@ Upsample2DFourier::Upsample2DFourier(std::string metadata_path,
         throw std::runtime_error("Upsample factor must be >= 1");
     }
 
-    detail::TypedPackagePaths paths = detail::ResolveTypedPackagePaths(
-        metadata_path, "upsample_2d_fourier_cpu_f32_model",
-        "upsample_2d_fourier_cpu_f64_model");
-    m_packagePathFloat = std::move(paths.float_path);
-    m_packagePathDouble = std::move(paths.double_path);
+    m_paths = detail::ResolveTypedPackagePaths(metadata_path,
+                                               detail::FileStem(__FILE__));
 }
 
 bool Upsample2DFourier::SupportsInputShape(const std::vector<int64_t> &shape) {
@@ -66,22 +51,7 @@ template <> struct UpsampleTraits<double> {
 template <typename T>
 ndarray::ndarray<T>
 Upsample2DFourier::RunTyped(const ndarray::ndarray<T> &input) const {
-    static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>,
-                  "Upsample2DFourier supports float and double only");
-
-    const std::string &package_path = [&]() -> const std::string & {
-        if constexpr (std::is_same_v<T, float>) {
-            return m_packagePathFloat;
-        }
-        return m_packagePathDouble;
-    }();
-
-    if (package_path.empty()) {
-        if constexpr (std::is_same_v<T, float>) {
-            throw std::runtime_error("Upsample float package path is empty");
-        }
-        throw std::runtime_error("Upsample double package path is empty");
-    }
+    const std::string &package_path = m_paths.SelectPath<T>(input.GetDevice());
 
     DLManagedTensor *input_dl = input.ToDLPack();
     if (!input_dl) {

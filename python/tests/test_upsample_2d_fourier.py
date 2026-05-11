@@ -31,9 +31,9 @@ def load_packages(metadata_path: Path) -> dict[str, str]:
             key, sep, value = line.partition("=")
             if not sep:
                 raise RuntimeError(f"Invalid metadata line: {line}")
-            if key.startswith("package:"):
-                package_name = key[len("package:") :]
-                package_paths[package_name] = value
+            if key in {"mode", "algorithm_module", "algorithm_class", "algorithm_name"}:
+                continue
+            package_paths[key] = value
     if not package_paths:
         raise RuntimeError(f"No package entries found in {metadata_path}")
     return package_paths
@@ -51,12 +51,8 @@ class Upsample2DFourierTests(unittest.TestCase):
         if args.kernel_lib is not None:
             torch.ops.load_library(str(args.kernel_lib))
         packages = load_packages(args.package_metadata)
-        cls.compiled_f32 = torch._inductor.aoti_load_package(
-            packages["upsample_2d_fourier_cpu_f32_model"]
-        )
-        cls.compiled_f64 = torch._inductor.aoti_load_package(
-            packages["upsample_2d_fourier_cpu_f64_model"]
-        )
+        cls.compiled_f32 = torch._inductor.aoti_load_package(packages["cpu_f32"])
+        cls.compiled_f64 = torch._inductor.aoti_load_package(packages["cpu_f64"])
         cls.eager_f32 = Upsample2DFourier().eval()
         cls.eager_f64 = Upsample2DFourier().eval()
 

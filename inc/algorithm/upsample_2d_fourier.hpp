@@ -5,6 +5,7 @@
 
 #include <ATen/dlpack.h>
 
+#include "algorithm/detail/aoti_metadata_resolver.hpp"
 #include "container/ndarray.hpp"
 
 namespace algorithm {
@@ -12,10 +13,6 @@ namespace algorithm {
 class Upsample2DFourier {
   public:
     explicit Upsample2DFourier(std::string metadata_path,
-                               int64_t upsample_factor = 2);
-
-    explicit Upsample2DFourier(std::string package_path_float,
-                               std::string package_path_double,
                                int64_t upsample_factor = 2);
 
     ndarray::ndarray<float> Run(const ndarray::ndarray<float> &input) const;
@@ -27,8 +24,7 @@ class Upsample2DFourier {
     template <typename T>
     ndarray::ndarray<T> RunTyped(const ndarray::ndarray<T> &input) const;
 
-    std::string m_packagePathFloat;
-    std::string m_packagePathDouble;
+    detail::TypedPackagePaths m_paths;
     int64_t m_upsampleFactor;
 };
 

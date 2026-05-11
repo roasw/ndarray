@@ -87,6 +87,28 @@ def validate_export_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def canonical_variant_name(model_name: str, algorithm_name: str) -> str:
+    prefix = f"{algorithm_name}_"
+    if not model_name.startswith(prefix):
+        raise RuntimeError(
+            "Exported model name must start with algorithm basename prefix "
+            f"'{prefix}', got '{model_name}'"
+        )
+    suffix = model_name[len(prefix) :]
+
+    known_variants = {
+        "cpu_f32_model": "cpu_f32",
+        "cpu_f64_model": "cpu_f64",
+        "cuda_f32_model": "cuda_f32",
+        "cuda_f64_model": "cuda_f64",
+    }
+    if suffix not in known_variants:
+        raise RuntimeError(
+            f"Unsupported exported model suffix '{suffix}' for '{model_name}'"
+        )
+    return known_variants[suffix]
+
+
 def normalize_mode(mode: str) -> str:
     normalized = mode.strip().lower()
     if normalized not in {"debug", "release"}:
@@ -177,6 +199,15 @@ def main() -> int:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     args.metadata_path.parent.mkdir(parents=True, exist_ok=True)
 
+    algorithm_name = Path(args.algorithm_module.split(".")[-1]).stem
+    metadata_stem = args.metadata_path.stem
+    expected_metadata_stem = algorithm_name
+    if metadata_stem != expected_metadata_stem:
+        raise RuntimeError(
+            "Metadata basename must match algorithm basename convention: "
+            f"expected '{expected_metadata_stem}', got '{metadata_stem}'"
+        )
+
     package_map: dict[str, str] = {}
     for name in sorted(modules.keys()):
         if args.dump:
@@ -188,15 +219,12 @@ def main() -> int:
         if mode == "release":
             strip_cpp_sources_in_package(package_path)
         verify_package_mode(package_path, mode)
-        package_map[name] = str(package_path)
+        variant_name = canonical_variant_name(name, algorithm_name)
+        package_map[variant_name] = str(package_path)
 
-    metadata_lines = [
-        f"algorithm_module={args.algorithm_module}",
-        f"algorithm_class={args.algorithm_class}",
-        f"mode={mode}",
-    ]
-    for name in sorted(package_map.keys()):
-        metadata_lines.append(f"package:{name}={package_map[name]}")
+    metadata_lines = [f"mode={mode}"]
+    for variant_name in sorted(package_map.keys()):
+        metadata_lines.append(f"{variant_name}={package_map[variant_name]}")
 
     args.metadata_path.write_text("\n".join(metadata_lines) + "\n", encoding="utf-8")
 
