@@ -17,8 +17,7 @@ target_link_libraries(
 target_compile_definitions(
     upsample_2d_fourier_runtime_test
     PRIVATE
-        UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH="${UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH}"
-        UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH="${UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH}"
+        UPSAMPLE_2D_FOURIER_METADATA_PATH="${UPSAMPLE_2D_FOURIER_METADATA_PATH}"
 )
 add_dependencies(upsample_2d_fourier_runtime_test upsample_2d_fourier_model)
 
@@ -39,10 +38,8 @@ target_link_libraries(
 target_compile_definitions(
     upsample_2d_fourier_parity_runtime_test
     PRIVATE
-        UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH="${UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH}"
-        UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH="${UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH}"
-        UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH="${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH}"
-        UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH="${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH}"
+        UPSAMPLE_2D_FOURIER_METADATA_PATH="${UPSAMPLE_2D_FOURIER_METADATA_PATH}"
+        UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH="${UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH}"
 )
 add_dependencies(
     upsample_2d_fourier_parity_runtime_test
@@ -73,8 +70,7 @@ target_link_libraries(
 target_compile_definitions(
     upsample_2d_fourier_kernel_runtime_test
     PRIVATE
-        UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH="${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH}"
-        UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH="${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH}"
+        UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH="${UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH}"
 )
 add_dependencies(
     upsample_2d_fourier_kernel_runtime_test

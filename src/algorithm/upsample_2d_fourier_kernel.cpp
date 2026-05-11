@@ -8,6 +8,7 @@
 #include <ATen/ops/ones.h>
 #include <torch/csrc/inductor/aoti_package/model_package_loader.h>
 
+#include "algorithm/detail/aoti_metadata_resolver.hpp"
 #include "algorithm/upsample_2d_fourier_kernel.hpp"
 
 namespace algorithm {
@@ -21,6 +22,20 @@ Upsample2DFourierKernel::Upsample2DFourierKernel(
     if (m_upsampleFactor < 1) {
         throw std::runtime_error("Upsample factor must be >= 1");
     }
+}
+
+Upsample2DFourierKernel::Upsample2DFourierKernel(std::string metadata_path,
+                                                 int64_t upsample_factor)
+    : m_upsampleFactor(upsample_factor) {
+    if (m_upsampleFactor < 1) {
+        throw std::runtime_error("Upsample factor must be >= 1");
+    }
+
+    detail::TypedPackagePaths paths = detail::ResolveTypedPackagePaths(
+        metadata_path, "upsample_2d_fourier_kernel_cpu_f32_model",
+        "upsample_2d_fourier_kernel_cpu_f64_model");
+    m_packagePathFloat = std::move(paths.float_path);
+    m_packagePathDouble = std::move(paths.double_path);
 }
 
 bool Upsample2DFourierKernel::SupportsInputShape(

@@ -20,19 +20,6 @@ include(cmake/AddPythonTestCase.cmake)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
-set(UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH
-    "${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_cpu_f32_model.pt2"
-)
-set(UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH
-    "${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_cpu_f64_model.pt2"
-)
-set(UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH
-    "${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_kernel_cpu_f32_model.pt2"
-)
-set(UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH
-    "${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_kernel_cpu_f64_model.pt2"
-)
-
 #################
 # Build targets #
 #################
@@ -82,10 +69,8 @@ add_aoti_compile_target(
     ALGORITHM_MODULE python.algorithm.upsample_2d_fourier
     ALGORITHM_CLASS Upsample2DFourier
     OUTPUT_DIR ${CMAKE_BINARY_DIR}/artifacts
+    METADATA_VAR UPSAMPLE_2D_FOURIER_METADATA_PATH
     MODE ${CMAKE_BUILD_TYPE}
-    OUTPUTS
-        ${UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH}
-        ${UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH}
     CONFIG max_factor=8
     DEPENDS ${CMAKE_SOURCE_DIR}/python/algorithm/upsample_2d_fourier.py
 )
@@ -95,10 +80,8 @@ add_aoti_compile_target(
     ALGORITHM_MODULE python.algorithm.upsample_2d_fourier_kernel
     ALGORITHM_CLASS Upsample2DFourierKernel
     OUTPUT_DIR ${CMAKE_BINARY_DIR}/artifacts
+    METADATA_VAR UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH
     MODE ${CMAKE_BUILD_TYPE}
-    OUTPUTS
-        ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH}
-        ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH}
     CONFIG max_factor=8
     CONFIG kernel_lib=$<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>
     DEPENDS
@@ -124,18 +107,14 @@ add_python_test_case(
 add_python_test_case(
     python_upsample_2d_fourier
     python/tests/test_upsample_2d_fourier.py
-    --package-f32
-    ${UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH}
-    --package-f64
-    ${UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH}
+    --package-metadata
+    ${UPSAMPLE_2D_FOURIER_METADATA_PATH}
 )
 add_python_test_case(
     python_upsample_2d_fourier_kernel
     python/tests/test_upsample_2d_fourier_kernel.py
-    --package-f32
-    ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH}
-    --package-f64
-    ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH}
+    --package-metadata
+    ${UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH}
     --kernel-lib
     $<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>
 )

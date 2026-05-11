@@ -6,23 +6,17 @@
 #include "upsample_2d_fourier_runtime_test_common.hpp"
 
 int main() {
-    const char *package_path_f32 = nullptr;
-    const char *package_path_f64 = nullptr;
-#ifdef UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH
-    package_path_f32 = UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH;
+    const char *metadata_path = nullptr;
+#ifdef UPSAMPLE_2D_FOURIER_METADATA_PATH
+    metadata_path = UPSAMPLE_2D_FOURIER_METADATA_PATH;
 #endif
-#ifdef UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH
-    package_path_f64 = UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH;
-#endif
-    if (package_path_f32 == nullptr || package_path_f64 == nullptr) {
+    if (metadata_path == nullptr) {
         throw std::runtime_error(
-            "UPSAMPLE_2D_FOURIER_CPU_F32_MODEL_PATH or "
-            "UPSAMPLE_2D_FOURIER_CPU_F64_MODEL_PATH is not defined");
+            "UPSAMPLE_2D_FOURIER_METADATA_PATH is not defined");
     }
 
     const int64_t factor = 4;
-    algorithm::Upsample2DFourier upsample(package_path_f32, package_path_f64,
-                                          factor);
+    algorithm::Upsample2DFourier upsample(metadata_path, factor);
     const std::vector<std::pair<int64_t, int64_t>> shapes = {
         {1, 1}, {1, 4}, {4, 1}, {3, 5}, {4, 6}, {7, 9}, {11, 13},
     };

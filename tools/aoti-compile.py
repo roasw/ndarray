@@ -22,6 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--algorithm-module", required=True)
     parser.add_argument("--algorithm-class", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--metadata-path", type=Path, required=True)
     parser.add_argument(
         "--config",
         action="append",
@@ -174,6 +175,9 @@ def main() -> int:
     modules = validate_export_payload(payload)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    args.metadata_path.parent.mkdir(parents=True, exist_ok=True)
+
+    package_map: dict[str, str] = {}
     for name in sorted(modules.keys()):
         if args.dump:
             dump_exported_graph(name, modules[name], args.output_dir)
@@ -184,6 +188,17 @@ def main() -> int:
         if mode == "release":
             strip_cpp_sources_in_package(package_path)
         verify_package_mode(package_path, mode)
+        package_map[name] = str(package_path)
+
+    metadata_lines = [
+        f"algorithm_module={args.algorithm_module}",
+        f"algorithm_class={args.algorithm_class}",
+        f"mode={mode}",
+    ]
+    for name in sorted(package_map.keys()):
+        metadata_lines.append(f"package:{name}={package_map[name]}")
+
+    args.metadata_path.write_text("\n".join(metadata_lines) + "\n", encoding="utf-8")
 
     return 0
 

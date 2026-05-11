@@ -11,6 +11,9 @@ namespace algorithm {
 
 class Upsample2DFourierKernel {
   public:
+    explicit Upsample2DFourierKernel(std::string metadata_path,
+                                     int64_t upsample_factor = 2);
+
     explicit Upsample2DFourierKernel(std::string package_path_float,
                                      std::string package_path_double,
                                      int64_t upsample_factor = 2);

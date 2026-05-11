@@ -18,10 +18,27 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Validate kernel-based upsample .pt2 package"
     )
-    parser.add_argument("--package-f32", type=Path, required=True)
-    parser.add_argument("--package-f64", type=Path, required=True)
+    parser.add_argument("--package-metadata", type=Path, required=True)
     parser.add_argument("--kernel-lib", type=Path, required=True)
     return parser.parse_args()
+
+
+def load_packages(metadata_path: Path) -> dict[str, str]:
+    package_paths: dict[str, str] = {}
+    with metadata_path.open("r", encoding="utf-8") as f:
+        for raw_line in f:
+            line = raw_line.strip()
+            if not line:
+                continue
+            key, sep, value = line.partition("=")
+            if not sep:
+                raise RuntimeError(f"Invalid metadata line: {line}")
+            if key.startswith("package:"):
+                package_name = key[len("package:") :]
+                package_paths[package_name] = value
+    if not package_paths:
+        raise RuntimeError(f"No package entries found in {metadata_path}")
+    return package_paths
 
 
 class Upsample2DFourierKernelTests(unittest.TestCase):
@@ -34,8 +51,13 @@ class Upsample2DFourierKernelTests(unittest.TestCase):
     def setUpClass(cls):
         args = parse_args()
         torch.ops.load_library(str(args.kernel_lib))
-        cls.compiled_f32 = torch._inductor.aoti_load_package(str(args.package_f32))
-        cls.compiled_f64 = torch._inductor.aoti_load_package(str(args.package_f64))
+        packages = load_packages(args.package_metadata)
+        cls.compiled_f32 = torch._inductor.aoti_load_package(
+            packages["upsample_2d_fourier_kernel_cpu_f32_model"]
+        )
+        cls.compiled_f64 = torch._inductor.aoti_load_package(
+            packages["upsample_2d_fourier_kernel_cpu_f64_model"]
+        )
         cls.eager_f32 = Upsample2DFourier().eval()
         cls.eager_f64 = Upsample2DFourier().eval()
 
