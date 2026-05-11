@@ -2,6 +2,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs-stable-newer.url = "github:NixOS/nixpkgs/nixos-25.11";
 
     git-hooks.url = "github:cachix/git-hooks.nix";
     git-hooks.inputs.nixpkgs.follows = "nixpkgs";
@@ -12,6 +13,7 @@
       self,
       nixpkgs,
       nixpkgs-stable,
+      nixpkgs-stable-newer,
       git-hooks,
     }:
     let
@@ -53,6 +55,7 @@
         let
           pkgs = pkgsFactory system nixpkgs;
           pkgsStable = pkgsFactory system nixpkgs-stable;
+          pkgsStableNewer = pkgsFactory system nixpkgs-stable-newer;
 
           inherit (self.checks.${system}.pre-commit-check) shellHook;
         in
@@ -65,8 +68,9 @@
               [
                 cmake
                 ninja
-                opencode
               ]
+              # FIXME: unstable opencode segfaults on NixOS + WSL2
+              ++ (if pkgs.stdenv.isLinux then [ pkgsStableNewer.opencode ] else [ pkgs.opencode ])
               ++ (
                 with pkgs;
                 lib.optionals stdenv.cc.isClang [
