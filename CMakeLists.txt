@@ -93,7 +93,7 @@ target_include_directories(
         ${TORCH_INCLUDE_DIRS}
         ${Python3_INCLUDE_DIRS}
 )
-target_link_libraries(_ndarray PRIVATE ndarray ${TORCH_LIBRARIES})
+target_link_libraries(_ndarray PRIVATE ndarray ${TORCH_LIBRARIES} torch_python)
 set_target_properties(_ndarray PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python)
 
 ################
