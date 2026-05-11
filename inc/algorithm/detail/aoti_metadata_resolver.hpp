@@ -98,16 +98,6 @@ LoadMetadataMap(const std::string &metadata_path) {
     return metadata;
 }
 
-inline std::string RequireMetadataValue(
-    const std::unordered_map<std::string, std::string> &metadata,
-    const std::string &key) {
-    const auto it = metadata.find(key);
-    if (it == metadata.end()) {
-        throw std::runtime_error("Missing metadata key: " + key);
-    }
-    return it->second;
-}
-
 inline std::string OptionalMetadataValue(
     const std::unordered_map<std::string, std::string> &metadata,
     const std::string &key) {
@@ -119,14 +109,7 @@ inline std::string OptionalMetadataValue(
 }
 
 inline std::string FileStem(const std::string &path) {
-    const std::size_t slash = path.find_last_of("/\\");
-    const std::size_t name_start =
-        (slash == std::string::npos) ? 0 : (slash + 1);
-    const std::size_t dot = path.find_last_of('.');
-    if (dot == std::string::npos || dot < name_start) {
-        return path.substr(name_start);
-    }
-    return path.substr(name_start, dot - name_start);
+    return std::filesystem::path(path).stem().string();
 }
 
 inline TypedPackagePaths
@@ -142,8 +125,8 @@ ResolveTypedPackagePaths(const std::string &metadata_path,
     const auto metadata = LoadMetadataMap(metadata_path);
 
     return {
-        RequireMetadataValue(metadata, "cpu_f32"),
-        RequireMetadataValue(metadata, "cpu_f64"),
+        OptionalMetadataValue(metadata, "cpu_f32"),
+        OptionalMetadataValue(metadata, "cpu_f64"),
         OptionalMetadataValue(metadata, "cuda_f32"),
         OptionalMetadataValue(metadata, "cuda_f64"),
     };
