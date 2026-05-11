@@ -53,8 +53,10 @@ add_algorithm_library(
     upsample_2d_fourier_kernel_algorithm
     src/algorithm/upsample_2d_fourier_kernel.cpp
 )
+
+set(NDARRAY_TORCH_KERNEL_DSO_TARGET ndarray_torch_kernels)
 add_torch_kernel_library(
-    upsample_2d_fourier_cpu_kernel
+    ${NDARRAY_TORCH_KERNEL_DSO_TARGET}
     src/kernel/upsample_2d_fourier_cpu.cpp
 )
 
@@ -96,10 +98,10 @@ add_aoti_compile_target(
         ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F32_MODEL_PATH}
         ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH}
     CONFIG max_factor=8
-    CONFIG kernel_lib=$<TARGET_FILE:upsample_2d_fourier_cpu_kernel>
+    CONFIG kernel_lib=$<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>
     DEPENDS
         ${CMAKE_SOURCE_DIR}/python/algorithm/upsample_2d_fourier_kernel.py
-        upsample_2d_fourier_cpu_kernel
+        ${NDARRAY_TORCH_KERNEL_DSO_TARGET}
 )
 
 ##############
@@ -133,11 +135,11 @@ add_python_test_case(
     --package-f64
     ${UPSAMPLE_2D_FOURIER_KERNEL_CPU_F64_MODEL_PATH}
     --kernel-lib
-    $<TARGET_FILE:upsample_2d_fourier_cpu_kernel>
+    $<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>
 )
 add_python_test_case(
     python_kernel_upsample_2d_fourier
     python/tests/test_kernel_upsample_2d_fourier.py
     --kernel-lib
-    $<TARGET_FILE:upsample_2d_fourier_cpu_kernel>
+    $<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>
 )

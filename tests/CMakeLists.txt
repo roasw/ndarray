@@ -32,7 +32,7 @@ add_executable(
 target_link_libraries(
     upsample_2d_fourier_kernel_runtime_test
     upsample_2d_fourier_kernel_algorithm
-    upsample_2d_fourier_cpu_kernel
+    ${NDARRAY_TORCH_KERNEL_DSO_TARGET}
     ${TORCH_LIBRARIES}
 )
 target_compile_definitions(

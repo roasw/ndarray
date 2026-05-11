@@ -72,7 +72,7 @@ TORCH_LIBRARY_IMPL(ndarray, Meta, m) {
 
 `tools/aoti-compile.py` 支持 `--config key=value`，所以可在 CMake 中传：
 
-- `kernel_lib=$<TARGET_FILE:upsample_2d_fourier_cpu_kernel>`
+- `kernel_lib=$<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>`
 
 然后在算法 `export(**config)` 里读取 `kernel_lib` 并 `load_library`。
 
@@ -80,13 +80,14 @@ TORCH_LIBRARY_IMPL(ndarray, Meta, m) {
 
 需要三类 target：
 
-1. kernel 共享库（注册算子）
+1. kernel 共享库（注册算子，建议统一成单个 DSO）
 1. kernel-backed 算法运行时封装库
 1. AOT 导出目标（生成 `.pt2`）
 
 示例要点：
 
-- `add_library(upsample_2d_fourier_cpu_kernel SHARED ...)`
+- `set(NDARRAY_TORCH_KERNEL_DSO_TARGET ndarray_torch_kernels)`
+- `add_torch_kernel_library(${NDARRAY_TORCH_KERNEL_DSO_TARGET} src/kernel/foo.cpp src/kernel/bar.cpp ...)`
 - `add_aoti_compile_target(... ALGORITHM_CLASS Upsample2DFourierKernel ... CONFIG kernel_lib=...)`
 - 为 kernel-backed 版本单独定义 `.pt2` 输出名
 
@@ -100,7 +101,7 @@ TORCH_LIBRARY_IMPL(ndarray, Meta, m) {
 
 额外注意：
 
-- 执行该 runtime 的可执行文件必须链接 kernel `.so`（或以其他方式确保注册代码已加载）。
+- 执行该 runtime 的可执行文件必须链接统一 kernel DSO（或以其他方式确保注册代码已加载）。
 - 否则会报：`Could not find schema for ndarray::...`
 
 ## 测试建议

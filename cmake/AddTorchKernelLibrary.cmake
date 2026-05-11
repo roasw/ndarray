@@ -1,5 +1,9 @@
-function(add_torch_kernel_library target source)
-    add_library(${target} SHARED ${source})
+function(add_torch_kernel_library target)
+    if(ARGC LESS 2)
+        message(FATAL_ERROR "add_torch_kernel_library requires at least one source")
+    endif()
+
+    add_library(${target} SHARED ${ARGN})
     target_include_directories(
         ${target}
         PUBLIC
