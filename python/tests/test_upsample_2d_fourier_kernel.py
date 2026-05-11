@@ -36,8 +36,8 @@ class Upsample2DFourierKernelTests(unittest.TestCase):
         torch.ops.load_library(str(args.kernel_lib))
         cls.compiled_f32 = torch._inductor.aoti_load_package(str(args.package_f32))
         cls.compiled_f64 = torch._inductor.aoti_load_package(str(args.package_f64))
-        cls.eager_f32 = Upsample2DFourier(input_dtype=torch.float32).eval()
-        cls.eager_f64 = Upsample2DFourier(input_dtype=torch.float64).eval()
+        cls.eager_f32 = Upsample2DFourier().eval()
+        cls.eager_f64 = Upsample2DFourier().eval()
 
     @staticmethod
     def _factor_token(factor: int) -> torch.Tensor:

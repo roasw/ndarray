@@ -26,8 +26,8 @@ class KernelUpsample2DFourierTests(unittest.TestCase):
     def setUpClass(cls):
         args = parse_args()
         torch.ops.load_library(str(args.kernel_lib))
-        cls.eager_f32 = Upsample2DFourier(input_dtype=torch.float32).eval()
-        cls.eager_f64 = Upsample2DFourier(input_dtype=torch.float64).eval()
+        cls.eager_f32 = Upsample2DFourier().eval()
+        cls.eager_f64 = Upsample2DFourier().eval()
 
     @staticmethod
     def _kernel_op() -> Any:

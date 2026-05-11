@@ -9,15 +9,9 @@ import torch.nn as nn
 
 
 class Upsample2DFourierKernel(nn.Module):
-    def __init__(self, input_dtype: torch.dtype):
-        super().__init__()
-        self.input_dtype = input_dtype
-
     def forward(self, x: torch.Tensor, factor_token: torch.Tensor) -> torch.Tensor:
         if x.ndim != 2:
             raise RuntimeError("Upsample expects a 2D tensor")
-        if x.dtype != self.input_dtype:
-            raise RuntimeError("Upsample input has unexpected dtype")
         if factor_token.ndim != 1:
             raise RuntimeError("Upsample factor token must be a 1D tensor")
         if factor_token.dtype != torch.float32:
@@ -42,7 +36,7 @@ class Upsample2DFourierKernel(nn.Module):
 
         modules: dict[str, Any] = {}
         for suffix, dtype in (("f32", torch.float32), ("f64", torch.float64)):
-            model = cls(input_dtype=dtype).eval()
+            model = cls().eval()
             example_input = torch.randn(7, 9, dtype=dtype)
             example_factor_token = torch.ones(2, dtype=torch.float32)
 
