@@ -4,7 +4,7 @@
 
 ## 导出入口
 
-以 `python/algorithm/upsample_2d_fourier.py` 为例：
+以 `python/ndarry/algorithm/upsample_2d_fourier.py` 为例：
 
 - 算法名：`Path(__file__).stem`（文件名 stem）
 - 导出方法：自动发现模块内唯一满足条件的类（`nn.Module` 子类且定义 `export(**config)`）

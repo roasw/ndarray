@@ -7,7 +7,7 @@ import unittest
 import numpy as np
 import torch
 
-from ndarray import from_torch, ndarray, to_torch
+from ndarry import from_torch, ndarray, to_torch
 
 
 class NdarrayDlpackBridgeTestBase(unittest.TestCase):

@@ -75,3 +75,28 @@ add_test(
     NAME upsample_2d_fourier_kernel_runtime
     COMMAND upsample_2d_fourier_kernel_runtime_test
 )
+
+add_python_test_case(
+    python_ndarray_dlpack_bridge
+    tests/python/test_ndarray_dlpack_bridge.py
+)
+add_python_test_case(
+    python_upsample_2d_fourier
+    tests/python/test_upsample_2d_fourier.py
+    --package-metadata
+    ${UPSAMPLE_2D_FOURIER_METADATA_PATH}
+)
+add_python_test_case(
+    python_upsample_2d_fourier_kernel
+    tests/python/test_upsample_2d_fourier_kernel.py
+    --package-metadata
+    ${UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH}
+    --kernel-lib
+    $<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>
+)
+add_python_test_case(
+    python_kernel_upsample_2d_fourier
+    tests/python/test_kernel_upsample_2d_fourier.py
+    --kernel-lib
+    $<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>
+)

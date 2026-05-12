@@ -3,42 +3,26 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import unittest
 from typing import Callable
 
 import torch
 import torch.utils.dlpack
 
-from algorithm.upsample_2d_fourier import Upsample2DFourier
-from ndarray import from_torch
+from common import (
+    factor_token,
+    load_packages,
+    parse_package_test_args,
+    run_test_case,
+)
+from ndarry import from_torch
+from ndarry.algorithm.upsample_2d_fourier import Upsample2DFourier
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Validate kernel-based upsample .pt2 package"
+    return parse_package_test_args(
+        "Validate kernel-based upsample .pt2 package", require_kernel_lib=True
     )
-    parser.add_argument("--package-metadata", type=Path, required=True)
-    parser.add_argument("--kernel-lib", type=Path, required=True)
-    return parser.parse_args()
-
-
-def load_packages(metadata_path: Path) -> dict[str, str]:
-    package_paths: dict[str, str] = {}
-    with metadata_path.open("r", encoding="utf-8") as f:
-        for raw_line in f:
-            line = raw_line.strip()
-            if not line:
-                continue
-            key, sep, value = line.partition("=")
-            if not sep:
-                raise RuntimeError(f"Invalid metadata line: {line}")
-            if key in {"mode", "algorithm_module", "algorithm_class", "algorithm_name"}:
-                continue
-            package_paths[key] = value
-    if not package_paths:
-        raise RuntimeError(f"No package entries found in {metadata_path}")
-    return package_paths
 
 
 class Upsample2DFourierKernelTests(unittest.TestCase):
@@ -59,7 +43,7 @@ class Upsample2DFourierKernelTests(unittest.TestCase):
 
     @staticmethod
     def _factor_token(factor: int) -> torch.Tensor:
-        return torch.ones(factor, dtype=torch.float32)
+        return factor_token(factor)
 
     def test_multiple_shapes_match_reference(self):
         shapes = [(3, 5), (4, 6), (7, 9), (8, 11), (15, 17)]
@@ -96,11 +80,7 @@ class Upsample2DFourierKernelTests(unittest.TestCase):
 
 
 def main() -> int:
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(
-        Upsample2DFourierKernelTests
-    )
-    result = unittest.TextTestRunner(verbosity=2).run(suite)
-    return 0 if result.wasSuccessful() else 1
+    return run_test_case(Upsample2DFourierKernelTests)
 
 
 if __name__ == "__main__":

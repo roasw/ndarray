@@ -9,7 +9,7 @@
 ## 目标结构
 
 - 内核实现：`src/kernel/upsample_2d_fourier_cpu.cpp`
-- Python 算法封装：`python/algorithm/upsample_2d_fourier_kernel.py`
+- Python 算法封装：`python/ndarry/algorithm/upsample_2d_fourier_kernel.py`
 - AOT 编译工具：`tools/aoti-compile.py`
 - CMake 接线：`CMakeLists.txt` + `cmake/AOTICompile.cmake`
 - C++ 运行时封装：`src/algorithm/upsample_2d_fourier_kernel.cpp`
@@ -88,7 +88,7 @@ TORCH_LIBRARY_IMPL(ndarray, Meta, m) {
 
 - `set(NDARRAY_TORCH_KERNEL_DSO_TARGET ndarray_torch_kernels)`
 - `add_torch_kernel_library(${NDARRAY_TORCH_KERNEL_DSO_TARGET} src/kernel/foo.cpp src/kernel/bar.cpp ...)`
-- `add_aoti_compile_target(... ALGORITHM_FILE python/algorithm/upsample_2d_fourier_kernel.py ... CONFIG kernel_lib=...)`
+- `add_aoti_compile_target(... ALGORITHM_FILE python/ndarry/algorithm/upsample_2d_fourier_kernel.py ... CONFIG kernel_lib=...)`
 - 为 kernel-backed 版本单独定义 `.pt2` 输出名
 
 补充：
@@ -123,8 +123,8 @@ TORCH_LIBRARY_IMPL(ndarray, Meta, m) {
 
 本项目对应示例：
 
-- `python/tests/test_kernel_upsample_2d_fourier.py`
-- `python/tests/test_upsample_2d_fourier_kernel.py`
+- `tests/python/test_kernel_upsample_2d_fourier.py`
+- `tests/python/test_upsample_2d_fourier_kernel.py`
 - `tests/algorithm/upsample_2d_fourier_kernel_runtime.cpp`
 
 ## 常见问题

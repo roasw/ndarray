@@ -19,8 +19,8 @@
 
 - Headers: `inc/container`, `inc/algorithm`.
 - Sources: `src/container`, `src/algorithm`, `src/kernel`.
-- Python: `python/algorithm`, `python/tests`.
-- Tests: `tests/demo`, `tests/ndarray`, `tests/algorithm`.
+- Python: package `python/ndarry`.
+- Tests: `tests/demo`, `tests/ndarray`, `tests/algorithm`, `tests/python`.
 
 ## Naming contract for export/runtime
 

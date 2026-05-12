@@ -66,7 +66,7 @@ set_target_properties(_ndarray PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINAR
 
 add_aoti_compile_target(
     TARGET upsample_2d_fourier_model
-    ALGORITHM_FILE python/algorithm/upsample_2d_fourier.py
+    ALGORITHM_FILE python/ndarry/algorithm/upsample_2d_fourier.py
     METADATA_VAR UPSAMPLE_2D_FOURIER_METADATA_PATH
     MODE ${CMAKE_BUILD_TYPE}
     CONFIG max_factor=8
@@ -74,7 +74,7 @@ add_aoti_compile_target(
 
 add_aoti_compile_target(
     TARGET upsample_2d_fourier_kernel_model
-    ALGORITHM_FILE python/algorithm/upsample_2d_fourier_kernel.py
+    ALGORITHM_FILE python/ndarry/algorithm/upsample_2d_fourier_kernel.py
     METADATA_VAR UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH
     MODE ${CMAKE_BUILD_TYPE}
     CONFIG max_factor=8
@@ -92,28 +92,3 @@ set(PYTHON_TEST_ENV
 
 enable_testing()
 add_subdirectory(tests)
-
-add_python_test_case(
-    python_ndarray_dlpack_bridge
-    python/tests/test_ndarray_dlpack_bridge.py
-)
-add_python_test_case(
-    python_upsample_2d_fourier
-    python/tests/test_upsample_2d_fourier.py
-    --package-metadata
-    ${UPSAMPLE_2D_FOURIER_METADATA_PATH}
-)
-add_python_test_case(
-    python_upsample_2d_fourier_kernel
-    python/tests/test_upsample_2d_fourier_kernel.py
-    --package-metadata
-    ${UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH}
-    --kernel-lib
-    $<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>
-)
-add_python_test_case(
-    python_kernel_upsample_2d_fourier
-    python/tests/test_kernel_upsample_2d_fourier.py
-    --kernel-lib
-    $<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>
-)

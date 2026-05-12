@@ -44,14 +44,14 @@ def parse_args() -> argparse.Namespace:
 
             Examples:
               aoti-compile.py \
-                --algorithm-module python.algorithm.upsample_2d_fourier \
+                --algorithm-module python.ndarry.algorithm.upsample_2d_fourier \
                 --output-dir build/Debug/artifacts \
                 --metadata-path build/Debug/artifacts/upsample_2d_fourier.txt \
                 --mode debug \
                 --config max_factor=8
 
               aoti-compile.py \
-                --algorithm-module python.algorithm.upsample_2d_fourier_kernel \
+                --algorithm-module python.ndarry.algorithm.upsample_2d_fourier_kernel \
                 --output-dir build/Debug/artifacts \
                 --metadata-path build/Debug/artifacts/upsample_2d_fourier_kernel.txt \
                 --mode release \

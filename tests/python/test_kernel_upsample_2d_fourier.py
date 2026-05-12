@@ -3,19 +3,17 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import unittest
 from typing import Any
 
 import torch
 
-from algorithm.upsample_2d_fourier import Upsample2DFourier
+from common import parse_kernel_test_args, run_test_case
+from ndarry.algorithm.upsample_2d_fourier import Upsample2DFourier
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate CPU torch upsample kernel")
-    parser.add_argument("--kernel-lib", type=Path, required=True)
-    return parser.parse_args()
+    return parse_kernel_test_args("Validate CPU torch upsample kernel")
 
 
 class KernelUpsample2DFourierTests(unittest.TestCase):
@@ -82,11 +80,7 @@ class KernelUpsample2DFourierTests(unittest.TestCase):
 
 
 def main() -> int:
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(
-        KernelUpsample2DFourierTests
-    )
-    result = unittest.TextTestRunner(verbosity=2).run(suite)
-    return 0 if result.wasSuccessful() else 1
+    return run_test_case(KernelUpsample2DFourierTests)
 
 
 if __name__ == "__main__":
