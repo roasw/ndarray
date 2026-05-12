@@ -50,7 +50,7 @@ function(add_aoti_compile_target)
             ${_aoti_metadata_path}
             ${AOTI_OUTPUTS}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${AOTI_OUTPUT_DIR}
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/aoti-compile.py
+        COMMAND ${CMAKE_SOURCE_DIR}/tools/aoti-compile.py
             --algorithm-module ${AOTI_ALGORITHM_MODULE}
             --algorithm-class ${AOTI_ALGORITHM_CLASS}
             --output-dir ${AOTI_OUTPUT_DIR}
