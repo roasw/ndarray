@@ -31,20 +31,10 @@ template <typename T> constexpr std::string_view TorchDTypeName() {
     }
 }
 
-template <typename T> py::tuple ShapeTuple(const ndarray::ndarray<T> &array) {
-    const std::vector<int64_t> shape = array.GetShape();
-    py::tuple out(shape.size());
-    for (size_t i = 0; i < shape.size(); ++i) {
-        out[i] = shape[i];
-    }
-    return out;
-}
-
-template <typename T> py::tuple StrideTuple(const ndarray::ndarray<T> &array) {
-    const std::vector<int64_t> strides = array.GetStrides();
-    py::tuple out(strides.size());
-    for (size_t i = 0; i < strides.size(); ++i) {
-        out[i] = strides[i];
+py::tuple IntTuple(const std::vector<int64_t> &values) {
+    py::tuple out(values.size());
+    for (size_t i = 0; i < values.size(); ++i) {
+        out[i] = values[i];
     }
     return out;
 }
@@ -59,19 +49,36 @@ int64_t NormalizeDim(int64_t dim, int64_t ndim) {
     return dim;
 }
 
+int64_t ValueAtDim(const std::vector<int64_t> &values, int64_t dim) {
+    const int64_t index =
+        NormalizeDim(dim, static_cast<int64_t>(values.size()));
+    return values[index];
+}
+
+std::vector<int64_t> ShapeFromIterable(py::iterable shape_like) {
+    std::vector<int64_t> shape;
+    for (py::handle value : shape_like) {
+        shape.push_back(value.cast<int64_t>());
+    }
+    return shape;
+}
+
+template <typename T> py::tuple ShapeTuple(const ndarray::ndarray<T> &array) {
+    return IntTuple(array.GetShape());
+}
+
+template <typename T> py::tuple StrideTuple(const ndarray::ndarray<T> &array) {
+    return IntTuple(array.GetStrides());
+}
+
 template <typename T>
 int64_t SizeAtDim(const ndarray::ndarray<T> &array, int64_t dim) {
-    const std::vector<int64_t> shape = array.GetShape();
-    const int64_t index = NormalizeDim(dim, static_cast<int64_t>(shape.size()));
-    return shape[index];
+    return ValueAtDim(array.GetShape(), dim);
 }
 
 template <typename T>
 int64_t StrideAtDim(const ndarray::ndarray<T> &array, int64_t dim) {
-    const std::vector<int64_t> strides = array.GetStrides();
-    const int64_t index =
-        NormalizeDim(dim, static_cast<int64_t>(strides.size()));
-    return strides[index];
+    return ValueAtDim(array.GetStrides(), dim);
 }
 
 template <typename T> int64_t Numel(const ndarray::ndarray<T> &array) {
@@ -85,6 +92,28 @@ template <typename T> int64_t Numel(const ndarray::ndarray<T> &array) {
 
 py::object TorchModule() { return py::module::import("torch"); }
 
+py::object TorchDevice(c10::DeviceType device_type) {
+    switch (device_type) {
+    case c10::DeviceType::CPU:
+        return TorchModule().attr("device")("cpu");
+    case c10::DeviceType::CUDA:
+        return TorchModule().attr("device")("cuda:0");
+    default:
+        throw std::runtime_error("Unsupported device");
+    }
+}
+
+py::tuple DlpackDeviceTuple(c10::DeviceType device_type) {
+    switch (device_type) {
+    case c10::DeviceType::CPU:
+        return py::make_tuple(1, 0);
+    case c10::DeviceType::CUDA:
+        return py::make_tuple(2, 0);
+    default:
+        throw std::runtime_error("Unsupported device for DLPack protocol");
+    }
+}
+
 template <typename T> py::object TorchSize(const ndarray::ndarray<T> &array) {
     return TorchModule().attr("Size")(ShapeTuple(array));
 }
@@ -96,15 +125,19 @@ template <typename T> py::object Dtype(const ndarray::ndarray<T> &) {
 template <typename T>
 at::Tensor ToTorchTensor(const ndarray::ndarray<T> &array);
 
-template <typename T> py::object Device(const ndarray::ndarray<T> &array) {
-    switch (array.GetDevice()) {
-    case c10::DeviceType::CPU:
-        return TorchModule().attr("device")("cpu");
-    case c10::DeviceType::CUDA:
-        return TorchModule().attr("device")("cuda:0");
-    default:
-        throw std::runtime_error("Unsupported device");
+template <typename T>
+bool TryCastNdarrayToTorch(const py::handle &value, py::object &out) {
+    try {
+        auto array = py::cast<ndarray::ndarray<T>>(value);
+        out = py::cast(ToTorchTensor(array));
+        return true;
+    } catch (const py::cast_error &) {
+        return false;
     }
+}
+
+template <typename T> py::object Device(const ndarray::ndarray<T> &array) {
+    return TorchDevice(array.GetDevice());
 }
 
 template <typename T>
@@ -120,14 +153,7 @@ bool IsContiguous(const ndarray::ndarray<T> &array, py::object memory_format) {
 }
 
 template <typename T> py::tuple DlpackDevice(const ndarray::ndarray<T> &array) {
-    switch (array.GetDevice()) {
-    case c10::DeviceType::CPU:
-        return py::make_tuple(1, 0);
-    case c10::DeviceType::CUDA:
-        return py::make_tuple(2, 0);
-    default:
-        throw std::runtime_error("Unsupported device for DLPack protocol");
-    }
+    return DlpackDeviceTuple(array.GetDevice());
 }
 
 void DlpackCapsuleDestructor(PyObject *capsule) {
@@ -184,18 +210,10 @@ at::Tensor ToTorchTensor(const ndarray::ndarray<T> &array) {
 }
 
 py::object ToTorchDynamic(const py::handle &value) {
-    try {
-        ndarray::ndarray<float> array =
-            py::cast<ndarray::ndarray<float>>(value);
-        return py::cast(ToTorchTensor(array));
-    } catch (const py::cast_error &) {
-    }
-
-    try {
-        ndarray::ndarray<double> array =
-            py::cast<ndarray::ndarray<double>>(value);
-        return py::cast(ToTorchTensor(array));
-    } catch (const py::cast_error &) {
+    py::object out;
+    if (TryCastNdarrayToTorch<float>(value, out) ||
+        TryCastNdarrayToTorch<double>(value, out)) {
+        return out;
     }
 
     throw py::type_error("to_torch expects ndarray_f32 or ndarray_f64");
@@ -215,11 +233,8 @@ py::class_<ndarray::ndarray<T>> BindNdarrayClass(py::module_ &module,
     py::class_<ndarray::ndarray<T>> cls(module, name.data());
     cls.def(py::init<>())
         .def(py::init([](py::iterable shape_like) {
-                 std::vector<int64_t> shape;
-                 for (py::handle value : shape_like) {
-                     shape.push_back(value.cast<int64_t>());
-                 }
-                 return ndarray::ndarray<T>(shape, c10::DeviceType::CPU);
+                 return ndarray::ndarray<T>(ShapeFromIterable(shape_like),
+                                            c10::DeviceType::CPU);
              }),
              py::arg("shape"))
         .def_static("from_torch", &FromTorchTensor<T>, py::arg("tensor"))
