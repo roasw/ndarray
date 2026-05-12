@@ -1,8 +1,9 @@
-#include <ATen/dlpack.h>
-#include <armadillo>
 #include <cassert>
 #include <cstring>
 #include <iostream>
+
+#include <ATen/dlpack.h>
+#include <armadillo>
 
 int main() {
     constexpr int64_t rows = 3;

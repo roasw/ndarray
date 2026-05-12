@@ -1,17 +1,16 @@
-#include "container/ndarray.hpp"
-
 #include <cmath>
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 #include <ATen/DLConvertor.h>
 #include <ATen/Tensor.h>
 #include <ATen/dlpack.h>
 #include <armadillo>
+
+#include "container/ndarray.hpp"
 
 namespace {
 
