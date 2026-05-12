@@ -22,7 +22,6 @@ target_compile_definitions(
 add_dependencies(upsample_2d_fourier_runtime_test upsample_2d_fourier_model)
 
 add_test(NAME upsample_2d_fourier_runtime COMMAND upsample_2d_fourier_runtime_test)
-set_tests_properties(upsample_2d_fourier_runtime PROPERTIES ENVIRONMENT "${PYTHON_FREE_ENV}")
 
 add_executable(
     upsample_2d_fourier_parity_runtime_test
@@ -51,11 +50,6 @@ add_test(
     NAME upsample_2d_fourier_parity_runtime
     COMMAND upsample_2d_fourier_parity_runtime_test
 )
-set_tests_properties(
-    upsample_2d_fourier_parity_runtime
-    PROPERTIES
-        ENVIRONMENT "${PYTHON_FREE_ENV}"
-)
 
 add_executable(
     upsample_2d_fourier_kernel_runtime_test
@@ -80,9 +74,4 @@ add_dependencies(
 add_test(
     NAME upsample_2d_fourier_kernel_runtime
     COMMAND upsample_2d_fourier_kernel_runtime_test
-)
-set_tests_properties(
-    upsample_2d_fourier_kernel_runtime
-    PROPERTIES
-        ENVIRONMENT "${PYTHON_FREE_ENV}"
 )
