@@ -1,6 +1,8 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <vector>
 
 #include <ATen/DLConvertor.h>
 #include <ATen/Tensor.h>
@@ -16,7 +18,19 @@ namespace py = pybind11;
 
 namespace {
 
-py::tuple ShapeTuple(const ndarray::ndarray<float> &array) {
+template <typename T> inline constexpr bool kAlwaysFalse = false;
+
+template <typename T> const char *TorchDTypeName() {
+    if constexpr (std::is_same_v<T, float>) {
+        return "float32";
+    } else if constexpr (std::is_same_v<T, double>) {
+        return "float64";
+    } else {
+        static_assert(kAlwaysFalse<T>, "Unsupported ndarray dtype");
+    }
+}
+
+template <typename T> py::tuple ShapeTuple(const ndarray::ndarray<T> &array) {
     const std::vector<int64_t> shape = array.GetShape();
     py::tuple out(shape.size());
     for (size_t i = 0; i < shape.size(); ++i) {
@@ -25,7 +39,7 @@ py::tuple ShapeTuple(const ndarray::ndarray<float> &array) {
     return out;
 }
 
-py::tuple StrideTuple(const ndarray::ndarray<float> &array) {
+template <typename T> py::tuple StrideTuple(const ndarray::ndarray<T> &array) {
     const std::vector<int64_t> strides = array.GetStrides();
     py::tuple out(strides.size());
     for (size_t i = 0; i < strides.size(); ++i) {
@@ -44,20 +58,22 @@ int64_t NormalizeDim(int64_t dim, int64_t ndim) {
     return dim;
 }
 
-int64_t SizeAtDim(const ndarray::ndarray<float> &array, int64_t dim) {
+template <typename T>
+int64_t SizeAtDim(const ndarray::ndarray<T> &array, int64_t dim) {
     const std::vector<int64_t> shape = array.GetShape();
     const int64_t index = NormalizeDim(dim, static_cast<int64_t>(shape.size()));
     return shape[index];
 }
 
-int64_t StrideAtDim(const ndarray::ndarray<float> &array, int64_t dim) {
+template <typename T>
+int64_t StrideAtDim(const ndarray::ndarray<T> &array, int64_t dim) {
     const std::vector<int64_t> strides = array.GetStrides();
     const int64_t index =
         NormalizeDim(dim, static_cast<int64_t>(strides.size()));
     return strides[index];
 }
 
-int64_t Numel(const ndarray::ndarray<float> &array) {
+template <typename T> int64_t Numel(const ndarray::ndarray<T> &array) {
     const std::vector<int64_t> shape = array.GetShape();
     int64_t total = 1;
     for (const int64_t value : shape) {
@@ -68,17 +84,18 @@ int64_t Numel(const ndarray::ndarray<float> &array) {
 
 py::object TorchModule() { return py::module::import("torch"); }
 
-py::object TorchSize(const ndarray::ndarray<float> &array) {
+template <typename T> py::object TorchSize(const ndarray::ndarray<T> &array) {
     return TorchModule().attr("Size")(ShapeTuple(array));
 }
 
-py::object Dtype(const ndarray::ndarray<float> &) {
-    return TorchModule().attr("float32");
+template <typename T> py::object Dtype(const ndarray::ndarray<T> &) {
+    return TorchModule().attr(TorchDTypeName<T>());
 }
 
-at::Tensor ToTorchTensor(const ndarray::ndarray<float> &array);
+template <typename T>
+at::Tensor ToTorchTensor(const ndarray::ndarray<T> &array);
 
-py::object Device(const ndarray::ndarray<float> &array) {
+template <typename T> py::object Device(const ndarray::ndarray<T> &array) {
     switch (array.GetDevice()) {
     case c10::DeviceType::CPU:
         return TorchModule().attr("device")("cpu");
@@ -89,8 +106,8 @@ py::object Device(const ndarray::ndarray<float> &array) {
     }
 }
 
-bool IsContiguous(const ndarray::ndarray<float> &array,
-                  py::object memory_format) {
+template <typename T>
+bool IsContiguous(const ndarray::ndarray<T> &array, py::object memory_format) {
     at::Tensor tensor = ToTorchTensor(array);
     py::object torch_tensor = py::cast(tensor);
     if (memory_format.is_none()) {
@@ -101,7 +118,7 @@ bool IsContiguous(const ndarray::ndarray<float> &array,
     return torch_tensor.attr("is_contiguous")(**kwargs).cast<bool>();
 }
 
-py::tuple DlpackDevice(const ndarray::ndarray<float> &array) {
+template <typename T> py::tuple DlpackDevice(const ndarray::ndarray<T> &array) {
     switch (array.GetDevice()) {
     case c10::DeviceType::CPU:
         return py::make_tuple(1, 0);
@@ -129,7 +146,8 @@ void DlpackCapsuleDestructor(PyObject *capsule) {
     }
 }
 
-py::capsule ToDLPackCapsule(const ndarray::ndarray<float> &array) {
+template <typename T>
+py::capsule ToDLPackCapsule(const ndarray::ndarray<T> &array) {
     DLManagedTensor *managed = array.ToDLPack();
     if (!managed) {
         throw std::runtime_error("Cannot export empty ndarray to DLPack");
@@ -138,11 +156,25 @@ py::capsule ToDLPackCapsule(const ndarray::ndarray<float> &array) {
     return py::capsule(managed, "dltensor", DlpackCapsuleDestructor);
 }
 
-ndarray::ndarray<float> FromTorchTensor(const at::Tensor &tensor) {
-    return ndarray::ndarray<float>::FromDLPack(at::toDLPack(tensor));
+template <typename T>
+ndarray::ndarray<T> FromTorchTensor(const at::Tensor &tensor) {
+    return ndarray::ndarray<T>::FromDLPack(at::toDLPack(tensor));
 }
 
-at::Tensor ToTorchTensor(const ndarray::ndarray<float> &array) {
+py::object FromTorchTensorDynamic(const at::Tensor &tensor) {
+    switch (tensor.scalar_type()) {
+    case at::kFloat:
+        return py::cast(FromTorchTensor<float>(tensor));
+    case at::kDouble:
+        return py::cast(FromTorchTensor<double>(tensor));
+    default:
+        throw py::type_error(
+            "from_torch expects torch.float32 or torch.float64");
+    }
+}
+
+template <typename T>
+at::Tensor ToTorchTensor(const ndarray::ndarray<T> &array) {
     DLManagedTensor *managed = array.ToDLPack();
     if (managed == nullptr) {
         return at::Tensor();
@@ -150,14 +182,99 @@ at::Tensor ToTorchTensor(const ndarray::ndarray<float> &array) {
     return at::fromDLPack(managed);
 }
 
-py::object MaybeToTorch(const py::handle &value) {
+py::object ToTorchDynamic(const py::handle &value) {
     try {
         ndarray::ndarray<float> array =
             py::cast<ndarray::ndarray<float>>(value);
         return py::cast(ToTorchTensor(array));
     } catch (const py::cast_error &) {
+    }
+
+    try {
+        ndarray::ndarray<double> array =
+            py::cast<ndarray::ndarray<double>>(value);
+        return py::cast(ToTorchTensor(array));
+    } catch (const py::cast_error &) {
+    }
+
+    throw py::type_error("to_torch expects ndarray_f32 or ndarray_f64");
+}
+
+py::object MaybeToTorch(const py::handle &value) {
+    try {
+        return ToTorchDynamic(value);
+    } catch (const py::type_error &) {
         return py::reinterpret_borrow<py::object>(value);
     }
+}
+
+template <typename T>
+py::class_<ndarray::ndarray<T>> BindNdarrayClass(py::module_ &module,
+                                                 const char *name) {
+    py::class_<ndarray::ndarray<T>> cls(module, name);
+    cls.def(py::init<>())
+        .def(py::init([](py::iterable shape_like) {
+                 std::vector<int64_t> shape;
+                 for (py::handle value : shape_like) {
+                     shape.push_back(value.cast<int64_t>());
+                 }
+                 return ndarray::ndarray<T>(shape, c10::DeviceType::CPU);
+             }),
+             py::arg("shape"))
+        .def_static("from_torch", &FromTorchTensor<T>, py::arg("tensor"))
+        .def("to_torch", &ToTorchTensor<T>)
+        .def(
+            "__dlpack__",
+            [](const ndarray::ndarray<T> &self, py::object) {
+                return ToDLPackCapsule(self);
+            },
+            py::arg("stream") = py::none())
+        .def("__dlpack_device__", &DlpackDevice<T>)
+        .def_property_readonly("ndim", &ndarray::ndarray<T>::GetNdim)
+        .def("dim", &ndarray::ndarray<T>::GetNdim)
+        .def("size", &TorchSize<T>)
+        .def("size", &SizeAtDim<T>, py::arg("dim"))
+        .def("stride",
+             [](const ndarray::ndarray<T> &self) { return StrideTuple(self); })
+        .def("stride", &StrideAtDim<T>, py::arg("dim"))
+        .def("numel", &Numel<T>)
+        .def("is_contiguous", &IsContiguous<T>,
+             py::arg("memory_format") = py::none())
+        .def("data_ptr",
+             [](const ndarray::ndarray<T> &self) {
+                 return reinterpret_cast<uintptr_t>(self.GetData());
+             })
+        .def_property_readonly("shape", &TorchSize<T>)
+        .def_property_readonly("strides", &StrideTuple<T>)
+        .def_property_readonly("dtype", &Dtype<T>)
+        .def_property_readonly("device", &Device<T>)
+        .def("clone", &ndarray::ndarray<T>::Clone)
+        .def("transpose", &ndarray::ndarray<T>::Transpose)
+        .def("__add__", &ndarray::ndarray<T>::operator+)
+        .def("__sub__", &ndarray::ndarray<T>::operator-)
+        .def("__mul__", &ndarray::ndarray<T>::operator*)
+        .def("__truediv__", &ndarray::ndarray<T>::operator/)
+        .def("__repr__", [](const ndarray::ndarray<T> &self) {
+            return "ndarray(shape=" +
+                   py::str(py::cast(self.GetShape())).cast<std::string>() +
+                   ", dtype=" + std::string(TorchDTypeName<T>()) +
+                   ", device=cpu)";
+        });
+    return cls;
+}
+
+py::object TorchFunction(py::object, py::object func, py::object,
+                         py::tuple args, py::object kwargs_obj);
+
+template <typename T>
+void BindTorchFunction(py::class_<ndarray::ndarray<T>> &cls) {
+    py::object classmethod_obj =
+        py::module::import("builtins").attr("classmethod");
+    py::object torch_function =
+        py::cpp_function(&TorchFunction, py::name("__torch_function__"),
+                         py::arg("cls"), py::arg("func"), py::arg("types"),
+                         py::arg("args"), py::arg("kwargs") = py::none());
+    cls.attr("__torch_function__") = classmethod_obj(torch_function);
 }
 
 py::object TorchFunction(py::object, py::object func, py::object,
@@ -182,65 +299,11 @@ py::object TorchFunction(py::object, py::object func, py::object,
 } // namespace
 
 PYBIND11_MODULE(_ndarray, module) {
-    py::class_<ndarray::ndarray<float>> cls(module, "ndarray");
-    cls.def(py::init<>())
-        .def(py::init([](py::iterable shape_like) {
-                 std::vector<int64_t> shape;
-                 for (py::handle value : shape_like) {
-                     shape.push_back(value.cast<int64_t>());
-                 }
-                 return ndarray::ndarray<float>(shape, c10::DeviceType::CPU);
-             }),
-             py::arg("shape"))
-        .def_static("from_torch", &FromTorchTensor, py::arg("tensor"))
-        .def("to_torch", &ToTorchTensor)
-        .def(
-            "__dlpack__",
-            [](const ndarray::ndarray<float> &self, py::object) {
-                return ToDLPackCapsule(self);
-            },
-            py::arg("stream") = py::none())
-        .def("__dlpack_device__", &DlpackDevice)
-        .def_property_readonly("ndim", &ndarray::ndarray<float>::GetNdim)
-        .def("dim", &ndarray::ndarray<float>::GetNdim)
-        .def("size", &TorchSize)
-        .def("size", &SizeAtDim, py::arg("dim"))
-        .def("stride",
-             [](const ndarray::ndarray<float> &self) {
-                 return StrideTuple(self);
-             })
-        .def("stride", &StrideAtDim, py::arg("dim"))
-        .def("numel", &Numel)
-        .def("is_contiguous", &IsContiguous,
-             py::arg("memory_format") = py::none())
-        .def("data_ptr",
-             [](const ndarray::ndarray<float> &self) {
-                 return reinterpret_cast<uintptr_t>(self.GetData());
-             })
-        .def_property_readonly("shape", &TorchSize)
-        .def_property_readonly("strides", &StrideTuple)
-        .def_property_readonly("dtype", &Dtype)
-        .def_property_readonly("device", &Device)
-        .def("clone", &ndarray::ndarray<float>::Clone)
-        .def("transpose", &ndarray::ndarray<float>::Transpose)
-        .def("__add__", &ndarray::ndarray<float>::operator+)
-        .def("__sub__", &ndarray::ndarray<float>::operator-)
-        .def("__mul__", &ndarray::ndarray<float>::operator*)
-        .def("__truediv__", &ndarray::ndarray<float>::operator/)
-        .def("__repr__", [](const ndarray::ndarray<float> &self) {
-            return "ndarray(shape=" +
-                   py::str(py::cast(self.GetShape())).cast<std::string>() +
-                   ", device=cpu)";
-        });
+    auto cls_f32 = BindNdarrayClass<float>(module, "ndarray_f32");
+    auto cls_f64 = BindNdarrayClass<double>(module, "ndarray_f64");
+    BindTorchFunction(cls_f32);
+    BindTorchFunction(cls_f64);
 
-    py::object classmethod_obj =
-        py::module::import("builtins").attr("classmethod");
-    py::object torch_function =
-        py::cpp_function(&TorchFunction, py::name("__torch_function__"),
-                         py::arg("cls"), py::arg("func"), py::arg("types"),
-                         py::arg("args"), py::arg("kwargs") = py::none());
-    cls.attr("__torch_function__") = classmethod_obj(torch_function);
-
-    module.def("from_torch", &FromTorchTensor, py::arg("tensor"));
-    module.def("to_torch", &ToTorchTensor, py::arg("array"));
+    module.def("from_torch", &FromTorchTensorDynamic, py::arg("tensor"));
+    module.def("to_torch", &ToTorchDynamic, py::arg("array"));
 }

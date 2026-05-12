@@ -7,12 +7,14 @@ import unittest
 import numpy as np
 import torch
 
-from ndarray import from_torch, to_torch, ndarray
+from ndarray import from_torch, ndarray, to_torch
 
 
-class NdarrayDlpackBridgeTests(unittest.TestCase):
+class NdarrayDlpackBridgeTestBase(unittest.TestCase):
+    dtype: torch.dtype
+
     def _make_py_cpp_pair(self):
-        py_base = torch.arange(6, dtype=torch.float32).reshape(2, 3)
+        py_base = torch.arange(6, dtype=self.dtype).reshape(2, 3)
         cpp_array = from_torch(py_base)
         return py_base, cpp_array
 
@@ -61,7 +63,7 @@ class NdarrayDlpackBridgeTests(unittest.TestCase):
 
     def test_python_created_ndarray_roundtrip(self):
         py_base, _ = self._make_py_cpp_pair()
-        cpp_created = ndarray([2, 3])
+        cpp_created = ndarray([2, 3], dtype=self.dtype)
         py_created = to_torch(cpp_created)
 
         self.assertEqual(py_created.data_ptr(), cpp_created.data_ptr())
@@ -115,8 +117,26 @@ class NdarrayDlpackBridgeTests(unittest.TestCase):
         self.assertNotEqual(float(py_clone[0, 0]), float(py_bridged[0, 0]))
 
 
+class NdarrayDlpackBridgeFloat32Tests(NdarrayDlpackBridgeTestBase):
+    dtype = torch.float32
+
+
+class NdarrayDlpackBridgeFloat64Tests(NdarrayDlpackBridgeTestBase):
+    dtype = torch.float64
+
+
 def main() -> int:
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(NdarrayDlpackBridgeTests)
+    suite = unittest.TestSuite()
+    suite.addTests(
+        unittest.defaultTestLoader.loadTestsFromTestCase(
+            NdarrayDlpackBridgeFloat32Tests
+        )
+    )
+    suite.addTests(
+        unittest.defaultTestLoader.loadTestsFromTestCase(
+            NdarrayDlpackBridgeFloat64Tests
+        )
+    )
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     return 0 if result.wasSuccessful() else 1
 
