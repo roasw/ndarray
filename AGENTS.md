@@ -20,7 +20,17 @@
 - Headers: `inc/container`, `inc/algorithm`.
 - Sources: `src/container`, `src/algorithm`, `src/kernel`.
 - Python: `python/algorithm`, `python/tests`.
-- Tests: `tests/demo`, `tests/ndarray`, `tests/algorithm`, `tests/kernel`.
+- Tests: `tests/demo`, `tests/ndarray`, `tests/algorithm`.
+
+## Naming contract for export/runtime
+
+- Keep algorithm basenames aligned across Python, CMake metadata, and C++ runtime.
+- In CMake, prefer `ALGORITHM_FILE`; `ALGORITHM_MODULE` is derived from that file path.
+- The Python export pipeline derives `algorithm_name` from module basename (which tracks the Python filename stem when conventions are followed).
+- Exported `model_name` entries must be prefixed with `<algorithm_name>_`.
+- Metadata basename must match `algorithm_name`.
+- C++ runtime intentionally relies on `__FILE__` stem conventions for matching.
+- If you rename an algorithm, rename both Python and C++ algorithm files and keep prefixes in sync.
 
 ## Kernel constraints (torch CPU kernel)
 

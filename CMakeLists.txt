@@ -66,27 +66,20 @@ set_target_properties(_ndarray PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINAR
 
 add_aoti_compile_target(
     TARGET upsample_2d_fourier_model
-    ALGORITHM_MODULE python.algorithm.upsample_2d_fourier
-    ALGORITHM_CLASS Upsample2DFourier
-    OUTPUT_DIR ${CMAKE_BINARY_DIR}/artifacts
+    ALGORITHM_FILE python/algorithm/upsample_2d_fourier.py
     METADATA_VAR UPSAMPLE_2D_FOURIER_METADATA_PATH
     MODE ${CMAKE_BUILD_TYPE}
     CONFIG max_factor=8
-    DEPENDS ${CMAKE_SOURCE_DIR}/python/algorithm/upsample_2d_fourier.py
 )
 
 add_aoti_compile_target(
     TARGET upsample_2d_fourier_kernel_model
-    ALGORITHM_MODULE python.algorithm.upsample_2d_fourier_kernel
-    ALGORITHM_CLASS Upsample2DFourierKernel
-    OUTPUT_DIR ${CMAKE_BINARY_DIR}/artifacts
+    ALGORITHM_FILE python/algorithm/upsample_2d_fourier_kernel.py
     METADATA_VAR UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH
     MODE ${CMAKE_BUILD_TYPE}
     CONFIG max_factor=8
     CONFIG kernel_lib=$<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>
-    DEPENDS
-        ${CMAKE_SOURCE_DIR}/python/algorithm/upsample_2d_fourier_kernel.py
-        ${NDARRAY_TORCH_KERNEL_DSO_TARGET}
+    DEPENDS ${NDARRAY_TORCH_KERNEL_DSO_TARGET}
 )
 
 ##############

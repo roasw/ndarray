@@ -88,8 +88,14 @@ TORCH_LIBRARY_IMPL(ndarray, Meta, m) {
 
 - `set(NDARRAY_TORCH_KERNEL_DSO_TARGET ndarray_torch_kernels)`
 - `add_torch_kernel_library(${NDARRAY_TORCH_KERNEL_DSO_TARGET} src/kernel/foo.cpp src/kernel/bar.cpp ...)`
-- `add_aoti_compile_target(... ALGORITHM_CLASS Upsample2DFourierKernel ... CONFIG kernel_lib=...)`
+- `add_aoti_compile_target(... ALGORITHM_FILE python/algorithm/upsample_2d_fourier_kernel.py ... CONFIG kernel_lib=...)`
 - 为 kernel-backed 版本单独定义 `.pt2` 输出名
+
+补充：
+
+- `ALGORITHM_CLASS` 可选；默认自动发现模块内唯一候选类（`nn.Module` 子类且定义 `export`）。
+- `OUTPUT_DIR` 可选；默认 `${CMAKE_BINARY_DIR}/artifacts`。
+- `DEPENDS` 默认会包含 `ALGORITHM_FILE`；仅在需要额外依赖（如 kernel DSO target）时追加。
 
 ## C++ 运行时加载 `.pt2`
 

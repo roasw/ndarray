@@ -6,8 +6,8 @@
 
 以 `python/algorithm/upsample_2d_fourier.py` 为例：
 
-- 类：`Upsample2DFourier`
-- 导出方法：`Upsample2DFourier.export(**config)`
+- 算法名：`Path(__file__).stem`（文件名 stem）
+- 导出方法：自动发现模块内唯一满足条件的类（`nn.Module` 子类且定义 `export(**config)`）
 - 返回：`dict[str, ExportedProgram]`
   - `upsample_2d_fourier_cpu_f32_model`
   - `upsample_2d_fourier_cpu_f64_model`
@@ -18,11 +18,32 @@
 
 脚本：`tools/aoti-compile.py`
 
-- 加载算法类并调用 `export(**config)`
+- 加载算法模块并调用算法类的 `export(**config)`
+  - 若传了 `--algorithm-class`：使用显式类名
+  - 若未传：自动发现模块内唯一候选类
 - 默认 `--dump`：写出 `<name>.exported.txt`
 - 调用 `torch._inductor.aoti_compile_and_package(...)` 生成 `<name>.pt2`
 
 当前产物目录：`build/Debug/artifacts`
+
+## 命名约定（文件名是契约的一部分）
+
+本项目故意使用“basename 一致性”作为跨语言校验机制。
+
+- Python 侧算法名来自 `ALGORITHM_MODULE` 的最后一段（通常等于 Python 文件名 stem）。
+- 在导出实现中，`model_name` 前缀由 `Path(__file__).stem` 派生。
+- `tools/aoti-compile.py` 会强校验导出模型名前缀必须为 `<algorithm_name>_`。
+- `tools/aoti-compile.py` 还会强校验 metadata 文件名 stem 必须等于 `algorithm_name`。
+- C++ runtime 侧使用 `__FILE__` 的 stem 参与同名约定，因此 C++/Python 命名需要保持同步。
+
+这意味着：若你重命名算法，请同时重命名并对齐以下项：
+
+- Python 算法文件名（以及 `CMakeLists.txt` 里的 `ALGORITHM_FILE`）
+- Python `export()` 里的 `model_name` 前缀
+- C++ 对应算法源文件名（`src/algorithm/*.cpp`）
+- 对应 metadata 文件名（默认由模块名推导）
+
+这是有意保留的约束，用于在构建/导出阶段尽早暴露命名漂移问题。
 
 ```text
 upsample_2d_fourier_cpu_f32_model.exported.txt
@@ -101,6 +122,9 @@ void AOTInductorModel::run_impl(
 
 - helper：`cmake/AOTICompile.cmake` 的 `add_aoti_compile_target(...)`
 - 调用点：`CMakeLists.txt`
+- 推荐传 `ALGORITHM_FILE`（相对路径）；`ALGORITHM_MODULE` 可由文件路径自动推导。
+- `OUTPUT_DIR` 可省略，默认 `${CMAKE_BINARY_DIR}/artifacts`。
+- `DEPENDS` 可省略，默认始终依赖 `ALGORITHM_FILE`；仅在有额外依赖（如 kernel DSO）时补充。
 - 当前输出：
   - `${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_cpu_f32_model.pt2`
   - `${CMAKE_BINARY_DIR}/artifacts/upsample_2d_fourier_cpu_f64_model.pt2`

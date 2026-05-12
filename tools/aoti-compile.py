@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import ast
 import importlib
+import inspect
 import shutil
 import sys
 import tempfile
@@ -13,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+import torch.nn as nn
 
 
 def parse_args() -> argparse.Namespace:
@@ -20,7 +22,7 @@ def parse_args() -> argparse.Namespace:
         description="Compile exported algorithm modules to .pt2 packages"
     )
     parser.add_argument("--algorithm-module", required=True)
-    parser.add_argument("--algorithm-class", required=True)
+    parser.add_argument("--algorithm-class")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--metadata-path", type=Path, required=True)
     parser.add_argument(
@@ -62,7 +64,7 @@ def parse_config(items: list[str]) -> dict[str, Any]:
 
 
 def load_export(
-    cls_module: str, cls_name: str, config: dict[str, Any]
+    cls_module: str, cls_name: str | None, config: dict[str, Any]
 ) -> dict[str, Any]:
     project_root = Path(__file__).resolve().parents[1]
     root_text = str(project_root)
@@ -70,9 +72,68 @@ def load_export(
         sys.path.insert(0, root_text)
 
     module = importlib.import_module(cls_module)
-    cls = getattr(module, cls_name)
+    cls: type[nn.Module] | None = None
+    if cls_name:
+        candidate = getattr(module, cls_name, None)
+        if candidate is None:
+            raise RuntimeError(
+                f"Class '{cls_name}' was not found in module '{cls_module}'"
+            )
+        if not inspect.isclass(candidate):
+            raise RuntimeError(f"'{cls_name}' in module '{cls_module}' is not a class")
+        if not issubclass(candidate, nn.Module):
+            raise RuntimeError(
+                f"Class '{cls_name}' in module '{cls_module}' "
+                "must inherit torch.nn.Module"
+            )
+        if candidate.__module__ != module.__name__:
+            raise RuntimeError(
+                f"Class '{cls_name}' must be defined in '{cls_module}', "
+                "not imported from another module"
+            )
+        if "export" not in candidate.__dict__:
+            raise RuntimeError(
+                f"Class '{cls_name}' must define export(**config) directly"
+            )
+        cls = candidate
+    else:
+        candidates: list[type[nn.Module]] = []
+        for _, candidate in inspect.getmembers(module, inspect.isclass):
+            if candidate.__module__ != module.__name__:
+                continue
+            if not issubclass(candidate, nn.Module):
+                continue
+            if "export" not in candidate.__dict__:
+                continue
+            export_attr = candidate.__dict__["export"]
+            if isinstance(export_attr, (classmethod, staticmethod)):
+                export_callable = export_attr.__func__
+            else:
+                export_callable = export_attr
+            if not callable(export_callable):
+                continue
+            candidates.append(candidate)
+
+        if not candidates:
+            raise RuntimeError(
+                "Could not auto-detect algorithm class in module "
+                f"'{cls_module}'. Expected exactly one class defined in this "
+                "module that inherits torch.nn.Module and defines "
+                "export(**config)."
+            )
+        if len(candidates) > 1:
+            candidate_names = ", ".join(sorted(c.__name__ for c in candidates))
+            raise RuntimeError(
+                "Found multiple algorithm class candidates in module "
+                f"'{cls_module}': {candidate_names}. "
+                "Pass --algorithm-class explicitly."
+            )
+
+        cls = candidates[0]
+
+    assert cls is not None
     if not hasattr(cls, "export"):
-        raise RuntimeError(f"{cls_name} does not define export(**config)")
+        raise RuntimeError(f"{cls.__name__} does not define export(**config)")
     export_payload = cls.export(**config)
     if not isinstance(export_payload, dict):
         raise RuntimeError("export() must return a dict")

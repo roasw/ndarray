@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+
+ALGORITHM_NAME = Path(__file__).stem
 
 
 class Upsample2DFourier(nn.Module):
@@ -61,7 +65,7 @@ class Upsample2DFourier(nn.Module):
                     "factor_token": {0: factor_dim},
                 },
             )
-            model_name = f"upsample_2d_fourier_cpu_{suffix}_model"
+            model_name = f"{ALGORITHM_NAME}_cpu_{suffix}_model"
             modules[model_name] = exported
 
         return modules
