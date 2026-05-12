@@ -6,8 +6,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_compile_options(-Wall -Wextra -Wpedantic -Werror)
-
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(Torch REQUIRED)
 find_package(Armadillo REQUIRED)
@@ -18,7 +16,21 @@ include(cmake/AddAlgorithmLibrary.cmake)
 include(cmake/AddTorchKernelLibrary.cmake)
 include(cmake/AddPythonTestCase.cmake)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
+add_library(ndarray_project_options INTERFACE)
+target_compile_options(
+    ndarray_project_options
+    INTERFACE
+        $<$<COMPILE_LANG_AND_ID:CXX,Clang,AppleClang,GNU>:-Wall;-Wextra;-Wpedantic;-Werror>
+        $<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/W4;/WX>
+)
+if(TORCH_CXX_FLAGS)
+    separate_arguments(NDARRAY_TORCH_CXX_FLAGS NATIVE_COMMAND "${TORCH_CXX_FLAGS}")
+    target_compile_options(
+        ndarray_project_options
+        INTERFACE
+            ${NDARRAY_TORCH_CXX_FLAGS}
+    )
+endif()
 
 #################
 # Build targets #
@@ -33,20 +45,32 @@ target_include_directories(
         ${ARMADILLO_INCLUDE_DIRS}
 )
 target_link_libraries(ndarray PUBLIC ${TORCH_LIBRARIES} ${ARMADILLO_LIBRARIES})
+target_link_libraries(ndarray PRIVATE ndarray_project_options)
 
 add_algorithm_library(
     upsample_2d_fourier_algorithm
     src/algorithm/upsample_2d_fourier.cpp
 )
+target_link_libraries(upsample_2d_fourier_algorithm PRIVATE ndarray_project_options)
 add_algorithm_library(
     upsample_2d_fourier_kernel_algorithm
     src/algorithm/upsample_2d_fourier_kernel.cpp
+)
+target_link_libraries(
+    upsample_2d_fourier_kernel_algorithm
+    PRIVATE
+        ndarray_project_options
 )
 
 set(NDARRAY_TORCH_KERNEL_DSO_TARGET ndarray_torch_kernels)
 add_torch_kernel_library(
     ${NDARRAY_TORCH_KERNEL_DSO_TARGET}
     src/kernel/upsample_2d_fourier_cpu.cpp
+)
+target_link_libraries(
+    ${NDARRAY_TORCH_KERNEL_DSO_TARGET}
+    PRIVATE
+        ndarray_project_options
 )
 
 pybind11_add_module(_ndarray MODULE src/python/py_ndarray.cpp)
@@ -58,6 +82,7 @@ target_include_directories(
         ${Python3_INCLUDE_DIRS}
 )
 target_link_libraries(_ndarray PRIVATE ndarray ${TORCH_LIBRARIES} torch_python)
+target_link_libraries(_ndarray PRIVATE ndarray_project_options)
 set_target_properties(_ndarray PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python)
 
 ################
