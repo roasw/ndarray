@@ -150,6 +150,31 @@ template <typename T> bool IsExpectedDType(const DLTensor &t) {
            t.dtype.lanes == dtype.lanes;
 }
 
+template <typename DataType, typename... Indices>
+DataType &AtImpl(const DLTensor &tensor, DataType *data, Indices... indices) {
+    static_assert((std::is_convertible_v<Indices, int64_t> && ...),
+                  "Indices must be convertible to int64_t");
+
+    constexpr size_t kCount = sizeof...(Indices);
+    if constexpr (kCount == 0) {
+        return *data;
+    } else if constexpr (kCount == 1) {
+        if (tensor.ndim != 1) {
+            throw std::runtime_error("Invalid dimensions for At()");
+        }
+        const std::array<int64_t, 1> idx = {static_cast<int64_t>(indices)...};
+        return data[idx[0] * tensor.strides[0]];
+    } else if constexpr (kCount == 2) {
+        if (tensor.ndim != 2) {
+            throw std::runtime_error("Invalid dimensions for At()");
+        }
+        const std::array<int64_t, 2> idx = {static_cast<int64_t>(indices)...};
+        return data[idx[0] * tensor.strides[0] + idx[1] * tensor.strides[1]];
+    } else {
+        static_assert(kCount <= 2, "At() supports up to 2 indices");
+    }
+}
+
 template <typename T, typename Op>
 ndarray<T> ArmaOp(const ndarray<T> &a, const ndarray<T> &b, const char *op_name,
                   Op op) {
@@ -226,67 +251,23 @@ template <typename T> T *ndarray<T>::GetData() const {
 template <typename T>
 template <typename... Indices>
 T &ndarray<T>::At(Indices... indices) {
-    static_assert((std::is_convertible_v<Indices, int64_t> && ...),
-                  "Indices must be convertible to int64_t");
-
     if (!m_tensor) {
         throw std::runtime_error("ndarray is empty");
     }
 
-    constexpr size_t kCount = sizeof...(Indices);
     const auto &t = m_tensor->dl_tensor;
-
-    if constexpr (kCount == 0) {
-        return *static_cast<T *>(t.data);
-    } else if constexpr (kCount == 1) {
-        if (t.ndim != 1) {
-            throw std::runtime_error("Invalid dimensions for At()");
-        }
-        const std::array<int64_t, 1> idx = {static_cast<int64_t>(indices)...};
-        return static_cast<T *>(t.data)[idx[0] * t.strides[0]];
-    } else if constexpr (kCount == 2) {
-        if (t.ndim != 2) {
-            throw std::runtime_error("Invalid dimensions for At()");
-        }
-        const std::array<int64_t, 2> idx = {static_cast<int64_t>(indices)...};
-        return static_cast<T *>(
-            t.data)[idx[0] * t.strides[0] + idx[1] * t.strides[1]];
-    } else {
-        static_assert(kCount <= 2, "At() supports up to 2 indices");
-    }
+    return AtImpl(t, static_cast<T *>(t.data), indices...);
 }
 
 template <typename T>
 template <typename... Indices>
 const T &ndarray<T>::At(Indices... indices) const {
-    static_assert((std::is_convertible_v<Indices, int64_t> && ...),
-                  "Indices must be convertible to int64_t");
-
     if (!m_tensor) {
         throw std::runtime_error("ndarray is empty");
     }
 
-    constexpr size_t kCount = sizeof...(Indices);
     const auto &t = m_tensor->dl_tensor;
-
-    if constexpr (kCount == 0) {
-        return *static_cast<const T *>(t.data);
-    } else if constexpr (kCount == 1) {
-        if (t.ndim != 1) {
-            throw std::runtime_error("Invalid dimensions for At()");
-        }
-        const std::array<int64_t, 1> idx = {static_cast<int64_t>(indices)...};
-        return static_cast<const T *>(t.data)[idx[0] * t.strides[0]];
-    } else if constexpr (kCount == 2) {
-        if (t.ndim != 2) {
-            throw std::runtime_error("Invalid dimensions for At()");
-        }
-        const std::array<int64_t, 2> idx = {static_cast<int64_t>(indices)...};
-        return static_cast<const T *>(
-            t.data)[idx[0] * t.strides[0] + idx[1] * t.strides[1]];
-    } else {
-        static_assert(kCount <= 2, "At() supports up to 2 indices");
-    }
+    return AtImpl(t, static_cast<const T *>(t.data), indices...);
 }
 
 template <typename T> ndarray<T> ndarray<T>::Transpose() const {
@@ -317,9 +298,10 @@ template <typename T> ndarray<T> ndarray<T>::Clone() const {
     return result;
 }
 
-template <typename T> ArmadilloView<T> ndarray<T>::AsArmadillo() {
+template <typename T> ArmadilloView<T> ndarray<T>::ToArmadilloView() {
     if (!m_tensor || m_tensor->dl_tensor.ndim != 2) {
-        throw std::runtime_error("AsArmadillo only supported for 2D arrays");
+        throw std::runtime_error(
+            "ToArmadilloView only supported for 2D arrays");
     }
 
     const auto &t = m_tensor->dl_tensor;
@@ -328,9 +310,10 @@ template <typename T> ArmadilloView<T> ndarray<T>::AsArmadillo() {
             m_tensor};
 }
 
-template <typename T> ArmadilloView<T> ndarray<T>::AsArmadillo() const {
+template <typename T> ArmadilloView<T> ndarray<T>::ToArmadilloView() const {
     if (!m_tensor || m_tensor->dl_tensor.ndim != 2) {
-        throw std::runtime_error("AsArmadillo only supported for 2D arrays");
+        throw std::runtime_error(
+            "ToArmadilloView only supported for 2D arrays");
     }
 
     const auto &t = m_tensor->dl_tensor;

@@ -59,8 +59,8 @@ template <typename T> class ndarray {
     // Armadillo escape hatch — 2D only.
     // Returns a lifetime-extending view; store as ArmadilloView<T>,
     // not arma::Mat<T>, to avoid dangling references.
-    ArmadilloView<T> AsArmadillo();
-    ArmadilloView<T> AsArmadillo() const;
+    ArmadilloView<T> ToArmadilloView();
+    ArmadilloView<T> ToArmadilloView() const;
 
     // Zero-copy DLPack export.
     // manager_ctx holds a new shared_ptr<DLManagedTensor> bump;

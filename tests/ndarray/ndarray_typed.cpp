@@ -146,7 +146,7 @@ template <typename T> void TestArmaViewSharesData() {
     ndarray::ndarray<T> a({3, 4});
     a.At(int64_t(1), int64_t(2)) = static_cast<T>(42);
 
-    auto view = a.AsArmadillo();
+    auto view = a.ToArmadilloView();
     require_near(view.mat(1, 2), static_cast<T>(42),
                  "arma view reads ndarray data");
 }
