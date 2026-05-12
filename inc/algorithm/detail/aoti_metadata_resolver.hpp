@@ -13,10 +13,10 @@
 namespace algorithm::detail {
 
 struct TypedPackagePaths {
-    std::string cpu_f32_path;
-    std::string cpu_f64_path;
-    std::string cuda_f32_path;
-    std::string cuda_f64_path;
+    std::string cpuF32Path;
+    std::string cpuF64Path;
+    std::string cudaF32Path;
+    std::string cudaF64Path;
 
     template <typename T>
     const std::string &SelectPath(c10::DeviceType device) const {
@@ -27,16 +27,16 @@ struct TypedPackagePaths {
         switch (device) {
         case c10::DeviceType::CPU:
             if constexpr (std::is_same_v<T, float>) {
-                selected = &cpu_f32_path;
+                selected = &cpuF32Path;
             } else {
-                selected = &cpu_f64_path;
+                selected = &cpuF64Path;
             }
             break;
         case c10::DeviceType::CUDA:
             if constexpr (std::is_same_v<T, float>) {
-                selected = &cuda_f32_path;
+                selected = &cudaF32Path;
             } else {
-                selected = &cuda_f64_path;
+                selected = &cudaF64Path;
             }
             break;
         default:
