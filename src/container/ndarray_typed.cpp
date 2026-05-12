@@ -164,12 +164,19 @@ DataType &AtImpl(const DLTensor &tensor, DataType *data, Indices... indices) {
             throw std::runtime_error("Invalid dimensions for At()");
         }
         const std::array<int64_t, 1> idx = {static_cast<int64_t>(indices)...};
+        if (idx[0] < 0 || idx[0] >= tensor.shape[0]) {
+            throw std::runtime_error("Index out of bounds for At()");
+        }
         return data[idx[0] * tensor.strides[0]];
     } else if constexpr (kCount == 2) {
         if (tensor.ndim != 2) {
             throw std::runtime_error("Invalid dimensions for At()");
         }
         const std::array<int64_t, 2> idx = {static_cast<int64_t>(indices)...};
+        if (idx[0] < 0 || idx[0] >= tensor.shape[0] || idx[1] < 0 ||
+            idx[1] >= tensor.shape[1]) {
+            throw std::runtime_error("Index out of bounds for At()");
+        }
         return data[idx[0] * tensor.strides[0] + idx[1] * tensor.strides[1]];
     } else {
         static_assert(kCount <= 2, "At() supports up to 2 indices");

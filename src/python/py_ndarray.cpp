@@ -140,6 +140,17 @@ template <typename T> py::object Device(const ndarray::ndarray<T> &array) {
     return TorchDevice(array.GetDevice());
 }
 
+std::string DeviceName(c10::DeviceType device_type) {
+    switch (device_type) {
+    case c10::DeviceType::CPU:
+        return "cpu";
+    case c10::DeviceType::CUDA:
+        return "cuda:0";
+    default:
+        throw std::runtime_error("Unsupported device");
+    }
+}
+
 template <typename T>
 bool IsContiguous(const ndarray::ndarray<T> &array, py::object memory_format) {
     at::Tensor tensor = ToTorchTensor(array);
@@ -274,7 +285,7 @@ py::class_<ndarray::ndarray<T>> BindNdarrayClass(py::module_ &module,
             return "ndarray(shape=" +
                    py::str(py::cast(self.GetShape())).cast<std::string>() +
                    ", dtype=" + std::string(TorchDTypeName<T>()) +
-                   ", device=cpu)";
+                   ", device=" + DeviceName(self.GetDevice()) + ")";
         });
     return cls;
 }
