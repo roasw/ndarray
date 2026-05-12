@@ -1,0 +1,80 @@
+#pragma once
+
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include <ATen/DLConvertor.h>
+#include <ATen/Tensor.h>
+#include <ATen/ops/ones.h>
+#include <torch/csrc/inductor/aoti_package/model_package_loader.h>
+
+#include "algorithm/detail/aoti_metadata_resolver.hpp"
+#include "container/ndarray.hpp"
+
+namespace algorithm::detail {
+
+template <typename T> struct UpsampleTraits;
+
+template <> struct UpsampleTraits<float> {
+    static constexpr at::ScalarType kScalarType = at::kFloat;
+    static constexpr std::string_view kDTypeName = "float32";
+};
+
+template <> struct UpsampleTraits<double> {
+    static constexpr at::ScalarType kScalarType = at::kDouble;
+    static constexpr std::string_view kDTypeName = "float64";
+};
+
+inline bool SupportsUpsampleInputShape(const std::vector<int64_t> &shape) {
+    if (shape.size() != 2) {
+        return false;
+    }
+    return shape[0] > 0 && shape[1] > 0;
+}
+
+template <typename T>
+ndarray::ndarray<T> RunUpsampleAoti(const ndarray::ndarray<T> &input,
+                                    const TypedPackagePaths &paths,
+                                    int64_t upsample_factor) {
+    const std::string &package_path = paths.SelectPath<T>(input.GetDevice());
+
+    if (!SupportsUpsampleInputShape(input.GetShape())) {
+        throw std::runtime_error(
+            "Upsample input must be 2D with positive shape");
+    }
+
+    DLManagedTensor *input_dl = input.ToDLPack();
+    if (!input_dl) {
+        throw std::runtime_error("Upsample input cannot be empty");
+    }
+
+    at::Tensor input_tensor = at::fromDLPack(input_dl);
+    if (input_tensor.scalar_type() != UpsampleTraits<T>::kScalarType) {
+        throw std::runtime_error(std::string("Upsample input must be ") +
+                                 std::string(UpsampleTraits<T>::kDTypeName));
+    }
+    if (input_tensor.dim() != 2) {
+        throw std::runtime_error("Upsample input must be a 2D tensor");
+    }
+
+    at::Tensor factor_token =
+        at::ones({upsample_factor}, at::TensorOptions().dtype(at::kFloat));
+
+    auto package = torch::inductor::AOTIModelPackageLoader(package_path);
+    std::vector<at::Tensor> outputs = package.run({input_tensor, factor_token});
+    if (outputs.size() != 1) {
+        throw std::runtime_error(
+            "Upsample model must return exactly one output");
+    }
+
+    at::Tensor output_tensor = outputs[0];
+    if (output_tensor.scalar_type() != UpsampleTraits<T>::kScalarType) {
+        output_tensor = output_tensor.to(UpsampleTraits<T>::kScalarType);
+    }
+
+    return ndarray::ndarray<T>::FromDLPack(at::toDLPack(output_tensor));
+}
+
+} // namespace algorithm::detail
