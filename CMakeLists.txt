@@ -28,7 +28,7 @@ add_library(ndarray SHARED src/container/ndarray_typed.cpp)
 target_include_directories(
     ndarray
     PUBLIC
-        inc
+        ${PROJECT_SOURCE_DIR}/inc
         ${TORCH_INCLUDE_DIRS}
         ${ARMADILLO_INCLUDE_DIRS}
 )
@@ -53,7 +53,7 @@ pybind11_add_module(_ndarray MODULE src/python/py_ndarray.cpp)
 target_include_directories(
     _ndarray
     PRIVATE
-        inc
+        ${PROJECT_SOURCE_DIR}/inc
         ${TORCH_INCLUDE_DIRS}
         ${Python3_INCLUDE_DIRS}
 )

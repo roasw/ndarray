@@ -3,7 +3,7 @@ function(add_algorithm_library target source)
     target_include_directories(
         ${target}
         PUBLIC
-            inc
+            ${PROJECT_SOURCE_DIR}/inc
             ${TORCH_INCLUDE_DIRS}
     )
     target_link_libraries(
