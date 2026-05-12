@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -57,9 +58,11 @@ void CompareTypedOutputs(algorithm::Upsample2DFourier &reference,
         if (!at::allclose(actual_kernel, actual_reference,
                           upsample_2d_fourier_test::TestConfig<T>::kRtol,
                           upsample_2d_fourier_test::TestConfig<T>::kAtol)) {
+            const std::string type_name(
+                upsample_2d_fourier_test::TestConfig<T>::kTypeName);
             throw std::runtime_error(
                 std::string("Parity runtime outputs mismatch for ") +
-                upsample_2d_fourier_test::TestConfig<T>::kTypeName);
+                type_name);
         }
     }
 }
@@ -67,8 +70,8 @@ void CompareTypedOutputs(algorithm::Upsample2DFourier &reference,
 } // namespace
 
 int main() {
-    const char *reference_metadata_path = nullptr;
-    const char *kernel_metadata_path = nullptr;
+    std::string reference_metadata_path;
+    std::string kernel_metadata_path;
 
 #ifdef UPSAMPLE_2D_FOURIER_METADATA_PATH
     reference_metadata_path = UPSAMPLE_2D_FOURIER_METADATA_PATH;
@@ -77,7 +80,7 @@ int main() {
     kernel_metadata_path = UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH;
 #endif
 
-    if (reference_metadata_path == nullptr || kernel_metadata_path == nullptr) {
+    if (reference_metadata_path.empty() || kernel_metadata_path.empty()) {
         throw std::runtime_error(
             "Parity runtime metadata macros are not fully defined");
     }

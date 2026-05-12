@@ -1,16 +1,17 @@
 #include <iostream>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "algorithm/upsample_2d_fourier_kernel.hpp"
 #include "upsample_2d_fourier_runtime_test_common.hpp"
 
 int main() {
-    const char *metadata_path = nullptr;
+    std::string metadata_path;
 #ifdef UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH
     metadata_path = UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH;
 #endif
-    if (metadata_path == nullptr) {
+    if (metadata_path.empty()) {
         throw std::runtime_error(
             "UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH is not defined");
     }

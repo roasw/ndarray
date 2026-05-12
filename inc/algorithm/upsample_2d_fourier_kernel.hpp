@@ -12,7 +12,7 @@ namespace algorithm {
 
 class Upsample2DFourierKernel {
   public:
-    explicit Upsample2DFourierKernel(std::string metadata_path,
+    explicit Upsample2DFourierKernel(const std::string &metadata_path,
                                      int64_t upsample_factor = 2);
 
     ndarray::ndarray<float> Run(const ndarray::ndarray<float> &input) const;

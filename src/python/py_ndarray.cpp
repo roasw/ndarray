@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -20,7 +21,7 @@ namespace {
 
 template <typename T> inline constexpr bool kAlwaysFalse = false;
 
-template <typename T> const char *TorchDTypeName() {
+template <typename T> constexpr std::string_view TorchDTypeName() {
     if constexpr (std::is_same_v<T, float>) {
         return "float32";
     } else if constexpr (std::is_same_v<T, double>) {
@@ -89,7 +90,7 @@ template <typename T> py::object TorchSize(const ndarray::ndarray<T> &array) {
 }
 
 template <typename T> py::object Dtype(const ndarray::ndarray<T> &) {
-    return TorchModule().attr(TorchDTypeName<T>());
+    return TorchModule().attr(TorchDTypeName<T>().data());
 }
 
 template <typename T>
@@ -210,8 +211,8 @@ py::object MaybeToTorch(const py::handle &value) {
 
 template <typename T>
 py::class_<ndarray::ndarray<T>> BindNdarrayClass(py::module_ &module,
-                                                 const char *name) {
-    py::class_<ndarray::ndarray<T>> cls(module, name);
+                                                 std::string_view name) {
+    py::class_<ndarray::ndarray<T>> cls(module, name.data());
     cls.def(py::init<>())
         .def(py::init([](py::iterable shape_like) {
                  std::vector<int64_t> shape;

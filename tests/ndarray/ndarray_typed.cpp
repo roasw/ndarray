@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <ATen/DLConvertor.h>
@@ -16,10 +17,10 @@ namespace {
 
 template <typename T> struct TypeName;
 template <> struct TypeName<float> {
-    static constexpr const char *value = "float";
+    static constexpr std::string_view value = "float";
 };
 template <> struct TypeName<double> {
-    static constexpr const char *value = "double";
+    static constexpr std::string_view value = "double";
 };
 
 template <typename T> constexpr T Epsilon();
@@ -218,7 +219,8 @@ template <typename T> void TestTorchFromDlpackZeroCopy() {
 }
 
 template <typename T> void RunTypedSuite(Counters &counters) {
-    const std::string prefix = std::string("[") + TypeName<T>::value + "] ";
+    const std::string prefix =
+        std::string("[") + std::string(TypeName<T>::value) + "] ";
     RunCase(prefix + "default_construction", counters,
             [] { TestDefaultConstruction<T>(); });
     RunCase(prefix + "construction_and_strides", counters,

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -20,14 +21,14 @@ template <> struct TestConfig<float> {
     static constexpr auto kDType = at::kFloat;
     static constexpr double kRtol = 1e-4;
     static constexpr double kAtol = 1e-5;
-    static constexpr const char *kTypeName = "float32";
+    static constexpr std::string_view kTypeName = "float32";
 };
 
 template <> struct TestConfig<double> {
     static constexpr auto kDType = at::kDouble;
     static constexpr double kRtol = 1e-10;
     static constexpr double kAtol = 1e-10;
-    static constexpr const char *kTypeName = "float64";
+    static constexpr std::string_view kTypeName = "float64";
 };
 
 template <typename T, typename TUpsample>
@@ -45,15 +46,14 @@ void RunTypedCases(TUpsample &upsample,
 
         const int64_t oh = h * factor;
         const int64_t ow = w * factor;
+        const std::string type_name(TestConfig<T>::kTypeName);
         if (actual.sizes() != at::IntArrayRef({oh, ow})) {
-            throw std::runtime_error(error_prefix + " " +
-                                     TestConfig<T>::kTypeName +
+            throw std::runtime_error(error_prefix + " " + type_name +
                                      " output has wrong shape");
         }
 
         if (!actual.isfinite().all().item<bool>()) {
-            throw std::runtime_error(error_prefix + " " +
-                                     TestConfig<T>::kTypeName +
+            throw std::runtime_error(error_prefix + " " + type_name +
                                      " output has NaN/Inf");
         }
 
@@ -63,8 +63,7 @@ void RunTypedCases(TUpsample &upsample,
                                                Slice(0, c10::nullopt, factor)});
             if (!at::allclose(sampled, input_tensor, TestConfig<T>::kRtol,
                               TestConfig<T>::kAtol)) {
-                throw std::runtime_error(error_prefix + " " +
-                                         TestConfig<T>::kTypeName +
+                throw std::runtime_error(error_prefix + " " + type_name +
                                          " identity check failed");
             }
         }

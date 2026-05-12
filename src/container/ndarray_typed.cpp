@@ -5,6 +5,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -176,10 +177,10 @@ DataType &AtImpl(const DLTensor &tensor, DataType *data, Indices... indices) {
 }
 
 template <typename T, typename Op>
-ndarray<T> ArmaOp(const ndarray<T> &a, const ndarray<T> &b, const char *op_name,
-                  Op op) {
+ndarray<T> ArmaOp(const ndarray<T> &a, const ndarray<T> &b,
+                  std::string_view op_name, Op op) {
     if (!a.GetData() || !b.GetData()) {
-        throw std::runtime_error(std::string("Cannot ") + op_name +
+        throw std::runtime_error(std::string("Cannot ") + std::string(op_name) +
                                  " empty arrays");
     }
     const auto shape_a = a.GetShape();
@@ -189,7 +190,8 @@ ndarray<T> ArmaOp(const ndarray<T> &a, const ndarray<T> &b, const char *op_name,
                                  " only supported for 2D arrays");
     }
     if (shape_a[0] != shape_b[0] || shape_a[1] != shape_b[1]) {
-        throw std::runtime_error(std::string("Shape mismatch for ") + op_name);
+        throw std::runtime_error(std::string("Shape mismatch for ") +
+                                 std::string(op_name));
     }
 
     arma::Mat<T> ma(a.GetData(), shape_a[0], shape_a[1], false, true);

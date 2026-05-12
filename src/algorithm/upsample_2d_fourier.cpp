@@ -1,5 +1,6 @@
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <ATen/DLConvertor.h>
@@ -12,7 +13,7 @@
 
 namespace algorithm {
 
-Upsample2DFourier::Upsample2DFourier(std::string metadata_path,
+Upsample2DFourier::Upsample2DFourier(const std::string &metadata_path,
                                      int64_t upsample_factor)
     : m_upsampleFactor(upsample_factor) {
     if (m_upsampleFactor < 1) {
@@ -38,12 +39,12 @@ template <typename T> struct UpsampleTraits;
 
 template <> struct UpsampleTraits<float> {
     static constexpr at::ScalarType kScalarType = at::kFloat;
-    static constexpr const char *kDTypeName = "float32";
+    static constexpr std::string_view kDTypeName = "float32";
 };
 
 template <> struct UpsampleTraits<double> {
     static constexpr at::ScalarType kScalarType = at::kDouble;
-    static constexpr const char *kDTypeName = "float64";
+    static constexpr std::string_view kDTypeName = "float64";
 };
 
 } // namespace
@@ -66,7 +67,7 @@ Upsample2DFourier::RunTyped(const ndarray::ndarray<T> &input) const {
     at::Tensor input_tensor = at::fromDLPack(input_dl);
     if (input_tensor.scalar_type() != UpsampleTraits<T>::kScalarType) {
         throw std::runtime_error(std::string("Upsample input must be ") +
-                                 UpsampleTraits<T>::kDTypeName);
+                                 std::string(UpsampleTraits<T>::kDTypeName));
     }
     if (input_tensor.dim() != 2) {
         throw std::runtime_error("Upsample input must be a 2D tensor");
