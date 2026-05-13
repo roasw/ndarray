@@ -82,6 +82,12 @@ void RunCase(const std::string &name, Counters &counters, Fn fn) {
     }
 }
 
+/**
+ * @brief Populate deterministic 2x2 inputs for arithmetic verification.
+ *
+ * @details Fixed non-zero values make expected add/sub/mul/div outcomes
+ * unambiguous and keep division safe from zero-denominator edge cases.
+ */
 template <typename T>
 void FillInputs(ndarray::ndarray<T> &a, ndarray::ndarray<T> &b) {
     a.At(int64_t(0), int64_t(0)) = static_cast<T>(8);
@@ -95,6 +101,13 @@ void FillInputs(ndarray::ndarray<T> &a, ndarray::ndarray<T> &b) {
     b.At(int64_t(1), int64_t(1)) = static_cast<T>(5);
 }
 
+/**
+ * @brief Verify element-wise arithmetic values against scalar reference math.
+ *
+ * @details The test computes `+`, `-`, `*`, and `/` on ndarrays, then compares
+ * each output element with scalar expressions on input elements. This works as
+ * a direct semantic oracle for element-wise behavior across supported dtypes.
+ */
 template <typename T> void TestArithmeticValues() {
     ndarray::ndarray<T> a({2, 2});
     ndarray::ndarray<T> b({2, 2});
@@ -117,6 +130,13 @@ template <typename T> void TestArithmeticValues() {
     }
 }
 
+/**
+ * @brief Validate bool arithmetic policy (OR/AND; no subtract/divide).
+ *
+ * @details For bool, `+` maps to logical OR and `*` maps to logical AND by
+ * project contract. Subtract and divide must throw. This test asserts all
+ * three policy points explicitly.
+ */
 template <> void TestArithmeticValues<bool>() {
     ndarray::ndarray<bool> a({2, 2});
     ndarray::ndarray<bool> b({2, 2});
@@ -161,6 +181,13 @@ template <> void TestArithmeticValues<bool>() {
     Require(divideThrew, "bool divide should throw");
 }
 
+/**
+ * @brief Ensure arithmetic outputs do not alias input storage.
+ *
+ * @details The test checks output pointer inequality vs both operands and then
+ * mutates output to verify lhs remains unchanged. This proves result allocation
+ * is independent even when arithmetic is implemented through torch ops.
+ */
 template <typename T> void TestResultStorageIndependent() {
     ndarray::ndarray<T> a({2, 2});
     ndarray::ndarray<T> b({2, 2});
@@ -176,6 +203,12 @@ template <typename T> void TestResultStorageIndependent() {
                 "mutating result should not affect lhs");
 }
 
+/**
+ * @brief Bool specialization of non-aliasing result storage verification.
+ *
+ * @details Mirrors non-bool independence checks for bool OR path and confirms
+ * output mutation does not write through into the source operand.
+ */
 template <> void TestResultStorageIndependent<bool>() {
     ndarray::ndarray<bool> a({2, 2});
     ndarray::ndarray<bool> b({2, 2});
@@ -191,6 +224,13 @@ template <> void TestResultStorageIndependent<bool>() {
             "mutating bool result should not affect lhs");
 }
 
+/**
+ * @brief Verify binary arithmetic rejects mismatched operand shapes.
+ *
+ * @details Constructing `{2,2}` and `{2,3}` operands and expecting throw
+ * confirms shape validation gates arithmetic before dispatching compute
+ * kernels.
+ */
 template <typename T> void TestShapeMismatchRejected() {
     ndarray::ndarray<T> a({2, 2});
     ndarray::ndarray<T> b({2, 3});

@@ -18,7 +18,7 @@ EXTRACT_ALL            = YES
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = YES
 EXTRACT_LOCAL_CLASSES  = YES
-EXTRACT_ANON_NSPACES   = NO
+EXTRACT_ANON_NSPACES   = YES
 
 WARNINGS               = YES
 WARN_IF_UNDOCUMENTED   = NO
@@ -26,9 +26,14 @@ WARN_IF_DOC_ERROR      = YES
 WARN_NO_PARAMDOC       = YES
 
 INPUT                  = "@CMAKE_SOURCE_DIR@/inc/container/ndarray.hpp" \
-                         "@CMAKE_SOURCE_DIR@/src/container/ndarray_typed.cpp"
+                         "@CMAKE_SOURCE_DIR@/src/container/ndarray_typed.cpp" \
+                         "@CMAKE_SOURCE_DIR@/tests/ndarray/ndarray_typed.cpp" \
+                         "@CMAKE_SOURCE_DIR@/tests/ndarray/ndarray_arithmetic.cpp" \
+                         "@CMAKE_SOURCE_DIR@/doc/algo-export-aot-compile.md" \
+                         "@CMAKE_SOURCE_DIR@/doc/custom-kernel-torch-aot.md"
 FILE_PATTERNS          = *.hpp \
-                         *.cpp
+                         *.cpp \
+                         *.md
 RECURSIVE              = NO
 EXCLUDE_SYMLINKS       = NO
 

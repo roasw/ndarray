@@ -123,6 +123,15 @@ void RunCase(const std::string &name, Counters &counters, Fn fn) {
     }
 }
 
+/**
+ * @brief Verify that default construction creates an empty ndarray sentinel.
+ *
+ * @details This test checks the contract for an uninitialized value-like
+ * container: rank is zero, data pointer is null, and shape/stride metadata is
+ * empty. The check works because these accessors are direct reflections of the
+ * internal `m_tensor == nullptr` state, so any non-empty metadata would imply
+ * accidental allocation.
+ */
 template <typename T> void TestDefaultConstruction() {
     ndarray::ndarray<T> a;
     require(a.GetNdim() == 0, "default ndim != 0");
@@ -131,6 +140,14 @@ template <typename T> void TestDefaultConstruction() {
     require(a.GetStrides().empty(), "default strides not empty");
 }
 
+/**
+ * @brief Validate shape and column-major stride initialization for 2D arrays.
+ *
+ * @details The test constructs a `{3,5}` ndarray and asserts strides `{1,3}`.
+ * This works because the implementation computes strides cumulatively in
+ * column-major order, so the first axis has unit stride and the second axis is
+ * multiplied by the row count.
+ */
 template <typename T> void Test2dConstructionAndStrides() {
     ndarray::ndarray<T> a({3, 5});
     require(a.GetNdim() == 2, "2D ndim");
@@ -140,6 +157,14 @@ template <typename T> void Test2dConstructionAndStrides() {
     require(a.GetData() != nullptr, "2D data null");
 }
 
+/**
+ * @brief Ensure copy construction preserves zero-copy shared ownership.
+ *
+ * @details This test checks pointer equality and write-through behavior between
+ * source and copied ndarray. It proves correctness because both objects should
+ * hold the same shared `DLManagedTensor` owner; mutating one must immediately
+ * affect the other if no hidden copy happened.
+ */
 template <typename T> void TestCopySharesBuffer() {
     ndarray::ndarray<T> a({2, 2});
     a.At(int64_t(0), int64_t(0)) = static_cast<T>(1);
@@ -152,6 +177,13 @@ template <typename T> void TestCopySharesBuffer() {
                  "mutation through copy should be visible");
 }
 
+/**
+ * @brief Ensure Clone performs a deep copy with independent storage.
+ *
+ * @details The test asserts pointer inequality and verifies value equality
+ * first, then mutates the clone and confirms the original is unchanged. The
+ * sequence proves both copy correctness and storage independence.
+ */
 template <typename T> void TestCloneIndependentBuffer() {
     ndarray::ndarray<T> a({3, 3});
     a.At(int64_t(0), int64_t(0)) = static_cast<T>(5);
@@ -167,6 +199,13 @@ template <typename T> void TestCloneIndependentBuffer() {
                  "mutation of clone should not affect original");
 }
 
+/**
+ * @brief Verify `At(r,c)` indexing against raw column-major memory layout.
+ *
+ * @details Data are written linearly through `GetData()` and then sampled by
+ * two-dimensional indices. Matching expected values validates that index-to-
+ * offset conversion uses stored DLPack strides in column-major order.
+ */
 template <typename T> void TestAt2dColumnMajorLayout() {
     ndarray::ndarray<T> a({3, 4});
     T *data = a.GetData();
@@ -184,6 +223,14 @@ template <typename T> void TestAt2dColumnMajorLayout() {
                  "col-major (0,1)");
 }
 
+/**
+ * @brief Validate 2D transpose value mapping.
+ *
+ * @details The test fills a rectangular matrix with unique values and checks
+ * `t(c,r) == a(r,c)` for all coordinates. This proves transpose correctness
+ * independent of backend (Armadillo path for non-bool and explicit loop for
+ * bool).
+ */
 template <typename T> void TestTransposeValues() {
     ndarray::ndarray<T> a({2, 3});
     for (int64_t r = 0; r < 2; ++r) {
@@ -200,6 +247,13 @@ template <typename T> void TestTransposeValues() {
     }
 }
 
+/**
+ * @brief Confirm Armadillo view is a zero-copy alias for non-bool types.
+ *
+ * @details The ndarray is written first, then read via `arma::Mat` view.
+ * Successful read-through demonstrates that the view references the same
+ * storage rather than a copied buffer.
+ */
 template <typename T> void TestArmaViewSharesData() {
     ndarray::ndarray<T> a({3, 4});
     a.At(int64_t(1), int64_t(2)) = static_cast<T>(42);
@@ -209,6 +263,13 @@ template <typename T> void TestArmaViewSharesData() {
                  "arma view reads ndarray data");
 }
 
+/**
+ * @brief Ensure bool specialization rejects Armadillo view requests.
+ *
+ * @details Armadillo bool matrices are intentionally unsupported in this
+ * project. The test expects `ToArmadilloView()` to throw, confirming the
+ * explicit guard remains in place.
+ */
 template <> void TestArmaViewSharesData<bool>() {
     ndarray::ndarray<bool> a({3, 4});
     bool threw = false;
@@ -220,6 +281,14 @@ template <> void TestArmaViewSharesData<bool>() {
     require(threw, "bool ToArmadilloView should throw");
 }
 
+/**
+ * @brief Validate DLPack export metadata and zero-copy pointer aliasing.
+ *
+ * @details The test checks pointer aliasing, ndim/shape/stride consistency,
+ * dtype code/bits, and CPU device metadata on `ToDLPack()`. This works because
+ * the exporter should only wrap existing storage and clone metadata arrays,
+ * never duplicate the tensor payload.
+ */
 template <typename T> void TestDlpackZeroCopyAndMetadata() {
     ndarray::ndarray<T> a({3, 4});
     DLManagedTensor *mt = a.ToDLPack();
@@ -242,6 +311,13 @@ template <typename T> void TestDlpackZeroCopyAndMetadata() {
     mt->deleter(mt);
 }
 
+/**
+ * @brief Verify `FromDLPack(ToDLPack())` roundtrip keeps storage shared.
+ *
+ * @details A value written in the source ndarray is observed in the roundtrip
+ * ndarray, then write-through from roundtrip back to source is verified. This
+ * proves adoption of the same underlying storage with proper ownership.
+ */
 template <typename T> void TestFromDlpackRoundtrip() {
     ndarray::ndarray<T> a({2, 3});
     a.At(int64_t(1), int64_t(2)) = static_cast<T>(7);
@@ -255,6 +331,13 @@ template <typename T> void TestFromDlpackRoundtrip() {
                  "FromDLPack should preserve zero-copy behavior");
 }
 
+/**
+ * @brief Confirm bidirectional zero-copy aliasing between ndarray and torch.
+ *
+ * @details The test creates a torch tensor from ndarray DLPack, checks pointer
+ * equality, mutates from torch and ndarray sides, and validates both views see
+ * updates. This demonstrates stable shared storage across the bridge.
+ */
 template <typename T> void TestTorchFromDlpackZeroCopy() {
     ndarray::ndarray<T> a({2, 3});
     a.At(int64_t(0), int64_t(0)) = static_cast<T>(3);
@@ -273,6 +356,13 @@ template <typename T> void TestTorchFromDlpackZeroCopy() {
                  "ndarray write-through should update torch view");
 }
 
+/**
+ * @brief Stress repeated DLPack roundtrips for aliasing stability.
+ *
+ * @details The loop repeatedly exports and re-adopts storage 128 times while
+ * checking pointer equality and write-through behavior each iteration. This
+ * catches ownership regressions that may only appear after repeated hand-offs.
+ */
 template <typename T> void TestRepeatedFromDlpackRoundtripZeroCopy() {
     ndarray::ndarray<T> a({2, 3});
     a.At(int64_t(0), int64_t(0)) = static_cast<T>(1);
@@ -290,6 +380,13 @@ template <typename T> void TestRepeatedFromDlpackRoundtripZeroCopy() {
 }
 
 template <typename T>
+/**
+ * @brief Verify adopted DLPack storage outlives the original ndarray object.
+ *
+ * @details A temporary source ndarray exports DLPack and is destroyed, while
+ * the adopted ndarray remains in scope. Continued read/write correctness after
+ * source destruction proves shared-owner lifetime management is correct.
+ */
 void TestFromDlpackKeepsStorageAliveAfterSourceDestroyed() {
     ndarray::ndarray<T> survivor;
     T *sourceData = nullptr;
@@ -311,6 +408,13 @@ void TestFromDlpackKeepsStorageAliveAfterSourceDestroyed() {
                  "survivor must remain writable after source destruction");
 }
 
+/**
+ * @brief Verify torch view lifetime when source ndarray is temporary.
+ *
+ * @details A torch tensor is created from a temporary ndarray DLPack capsule,
+ * then used after the ndarray goes out of scope. Subsequent roundtrip back to
+ * ndarray confirms the storage remains alive and mutable through torch.
+ */
 template <typename T> void TestTorchViewOutlivesTemporaryNdarray() {
     at::Tensor t;
     {
