@@ -10,6 +10,7 @@ find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(Torch REQUIRED)
 find_package(Armadillo REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
+find_package(Doxygen QUIET)
 
 include(cmake/AOTICompile.cmake)
 include(cmake/AddAlgorithmLibrary.cmake)
@@ -117,3 +118,25 @@ set(PYTHON_TEST_ENV
 
 enable_testing()
 add_subdirectory(tests)
+
+########################
+# Documentation target #
+########################
+
+if(DOXYGEN_FOUND)
+    set(NDARRAY_DOXYFILE_IN ${CMAKE_SOURCE_DIR}/cmake/Doxyfile.in)
+    set(NDARRAY_DOXYFILE ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+    set(NDARRAY_DOXYGEN_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/docs/doxygen)
+    configure_file(${NDARRAY_DOXYFILE_IN} ${NDARRAY_DOXYFILE} @ONLY)
+
+    add_custom_target(
+        doxygen
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${NDARRAY_DOXYGEN_OUTPUT_DIR}
+        COMMAND ${DOXYGEN_EXECUTABLE} ${NDARRAY_DOXYFILE}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM
+    )
+else()
+    message(STATUS "Doxygen not found; 'doxygen' target is unavailable")
+endif()

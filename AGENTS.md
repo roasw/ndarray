@@ -22,6 +22,14 @@
 - Python: package `python/ndarry`.
 - Tests: `tests/demo`, `tests/ndarray`, `tests/algorithm`, `tests/python`.
 
+## Documentation
+
+- Doxygen docs are generated from `inc/container/ndarray.hpp`.
+- Build docs target (excluded from default `all`):
+  - `cmake --build build/Debug --target doxygen`
+- Generated HTML entrypoint:
+  - `build/Debug/docs/doxygen/html/index.html`
+
 ## Naming contract for export/runtime
 
 - Keep algorithm basenames aligned across Python, CMake metadata, and C++ runtime.

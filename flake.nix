@@ -68,6 +68,8 @@
               [
                 cmake
                 ninja
+                doxygen
+                graphviz
               ]
               # FIXME: unstable opencode segfaults on NixOS + WSL2
               ++ (if pkgs.stdenv.isLinux then [ pkgsStableNewer.opencode ] else [ pkgs.opencode ])
