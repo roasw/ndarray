@@ -26,6 +26,10 @@ template <typename T> struct ArmadilloView {
     operator const arma::Mat<T> &() const { return mat; }
 };
 
+template <> struct ArmadilloView<bool> {
+    std::shared_ptr<DLManagedTensor> owner;
+};
+
 template <typename T> class ndarray {
   private:
     std::shared_ptr<DLManagedTensor> m_tensor;

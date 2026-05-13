@@ -1,3 +1,4 @@
+#include <complex>
 #include <cstdint>
 #include <stdexcept>
 #include <string>
@@ -26,6 +27,16 @@ template <typename T> constexpr std::string_view TorchDTypeName() {
         return "float32";
     } else if constexpr (std::is_same_v<T, double>) {
         return "float64";
+    } else if constexpr (std::is_same_v<T, int32_t>) {
+        return "int32";
+    } else if constexpr (std::is_same_v<T, int64_t>) {
+        return "int64";
+    } else if constexpr (std::is_same_v<T, std::complex<float>>) {
+        return "complex64";
+    } else if constexpr (std::is_same_v<T, std::complex<double>>) {
+        return "complex128";
+    } else if constexpr (std::is_same_v<T, bool>) {
+        return "bool";
     } else {
         static_assert(kAlwaysFalse<T>, "Unsupported ndarray dtype");
     }
@@ -205,9 +216,20 @@ py::object FromTorchTensorDynamic(const at::Tensor &tensor) {
         return py::cast(FromTorchTensor<float>(tensor));
     case at::kDouble:
         return py::cast(FromTorchTensor<double>(tensor));
+    case at::kInt:
+        return py::cast(FromTorchTensor<int32_t>(tensor));
+    case at::kLong:
+        return py::cast(FromTorchTensor<int64_t>(tensor));
+    case at::kComplexFloat:
+        return py::cast(FromTorchTensor<std::complex<float>>(tensor));
+    case at::kComplexDouble:
+        return py::cast(FromTorchTensor<std::complex<double>>(tensor));
+    case at::kBool:
+        return py::cast(FromTorchTensor<bool>(tensor));
     default:
         throw py::type_error(
-            "from_torch expects torch.float32 or torch.float64");
+            "from_torch expects torch.float32/float64/int32/int64/"
+            "complex64/complex128/bool");
     }
 }
 
@@ -223,11 +245,16 @@ at::Tensor ToTorchTensor(const ndarray::ndarray<T> &array) {
 py::object ToTorchDynamic(const py::handle &value) {
     py::object out;
     if (TryCastNdarrayToTorch<float>(value, out) ||
-        TryCastNdarrayToTorch<double>(value, out)) {
+        TryCastNdarrayToTorch<double>(value, out) ||
+        TryCastNdarrayToTorch<int32_t>(value, out) ||
+        TryCastNdarrayToTorch<int64_t>(value, out) ||
+        TryCastNdarrayToTorch<std::complex<float>>(value, out) ||
+        TryCastNdarrayToTorch<std::complex<double>>(value, out) ||
+        TryCastNdarrayToTorch<bool>(value, out)) {
         return out;
     }
 
-    throw py::type_error("to_torch expects ndarray_f32 or ndarray_f64");
+    throw py::type_error("to_torch expects ndarray_f32/f64/i32/i64/c32/c64/b");
 }
 
 py::object MaybeToTorch(const py::handle &value) {
@@ -328,8 +355,19 @@ py::object TorchFunction(py::object, py::object func, py::object,
 PYBIND11_MODULE(_ndarray, module) {
     auto cls_f32 = BindNdarrayClass<float>(module, "ndarray_f32");
     auto cls_f64 = BindNdarrayClass<double>(module, "ndarray_f64");
+    auto cls_i32 = BindNdarrayClass<int32_t>(module, "ndarray_i32");
+    auto cls_i64 = BindNdarrayClass<int64_t>(module, "ndarray_i64");
+    auto cls_c32 = BindNdarrayClass<std::complex<float>>(module, "ndarray_c32");
+    auto cls_c64 =
+        BindNdarrayClass<std::complex<double>>(module, "ndarray_c64");
+    auto cls_b = BindNdarrayClass<bool>(module, "ndarray_b");
     BindTorchFunction(cls_f32);
     BindTorchFunction(cls_f64);
+    BindTorchFunction(cls_i32);
+    BindTorchFunction(cls_i64);
+    BindTorchFunction(cls_c32);
+    BindTorchFunction(cls_c64);
+    BindTorchFunction(cls_b);
 
     module.def("from_torch", &FromTorchTensorDynamic, py::arg("tensor"));
     module.def("to_torch", &ToTorchDynamic, py::arg("array"));

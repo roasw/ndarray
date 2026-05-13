@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <complex>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -29,6 +30,38 @@ template <> struct DTypeTraits<float> {
 template <> struct DTypeTraits<double> {
     static constexpr DLDataType kDType() { return {kDLFloat, 64, 1}; }
 };
+
+template <> struct DTypeTraits<int32_t> {
+    static constexpr DLDataType kDType() { return {kDLInt, 32, 1}; }
+};
+
+template <> struct DTypeTraits<int64_t> {
+    static constexpr DLDataType kDType() { return {kDLInt, 64, 1}; }
+};
+
+template <> struct DTypeTraits<std::complex<float>> {
+    static constexpr DLDataType kDType() { return {kDLComplex, 64, 1}; }
+};
+
+template <> struct DTypeTraits<std::complex<double>> {
+    static constexpr DLDataType kDType() { return {kDLComplex, 128, 1}; }
+};
+
+template <> struct DTypeTraits<bool> {
+    static constexpr DLDataType kDType() { return {kDLBool, 8, 1}; }
+};
+
+template <typename T> struct IsSupportedNdarrayType : std::false_type {};
+
+template <> struct IsSupportedNdarrayType<float> : std::true_type {};
+template <> struct IsSupportedNdarrayType<double> : std::true_type {};
+template <> struct IsSupportedNdarrayType<int32_t> : std::true_type {};
+template <> struct IsSupportedNdarrayType<int64_t> : std::true_type {};
+template <>
+struct IsSupportedNdarrayType<std::complex<float>> : std::true_type {};
+template <>
+struct IsSupportedNdarrayType<std::complex<double>> : std::true_type {};
+template <> struct IsSupportedNdarrayType<bool> : std::true_type {};
 
 int64_t NumElements(const DLTensor &t) {
     int64_t n = 1;
@@ -97,8 +130,8 @@ void ManagedTensorDeleter(DLManagedTensor *mt) {
 template <typename T>
 std::shared_ptr<DLManagedTensor>
 AllocateTensor(const std::vector<int64_t> &shape, c10::DeviceType device_type) {
-    static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>,
-                  "ndarray only supports float and double");
+    static_assert(IsSupportedNdarrayType<T>::value,
+                  "ndarray only supports configured scalar dtypes");
 
     const int ndim = static_cast<int>(shape.size());
     const int64_t total = [&] {
@@ -288,10 +321,18 @@ template <typename T> ndarray<T> ndarray<T>::Transpose() const {
     std::vector<int64_t> new_shape = {t.shape[1], t.shape[0]};
     ndarray<T> result(new_shape, GetDevice());
 
-    arma::Mat<T> src(GetData(), t.shape[0], t.shape[1], false, true);
-    arma::Mat<T> dst(result.GetData(), result.m_tensor->dl_tensor.shape[0],
-                     result.m_tensor->dl_tensor.shape[1], false, true);
-    dst = src.t();
+    if constexpr (std::is_same_v<T, bool>) {
+        for (int64_t r = 0; r < t.shape[0]; ++r) {
+            for (int64_t c = 0; c < t.shape[1]; ++c) {
+                result.At(c, r) = At(r, c);
+            }
+        }
+    } else {
+        arma::Mat<T> src(GetData(), t.shape[0], t.shape[1], false, true);
+        arma::Mat<T> dst(result.GetData(), result.m_tensor->dl_tensor.shape[0],
+                         result.m_tensor->dl_tensor.shape[1], false, true);
+        dst = src.t();
+    }
     return result;
 }
 
@@ -313,10 +354,14 @@ template <typename T> ArmadilloView<T> ndarray<T>::ToArmadilloView() {
             "ToArmadilloView only supported for 2D arrays");
     }
 
-    const auto &t = m_tensor->dl_tensor;
-    return {arma::Mat<T>(static_cast<T *>(t.data), t.shape[0], t.shape[1],
-                         false, true),
-            m_tensor};
+    if constexpr (std::is_same_v<T, bool>) {
+        throw std::runtime_error("ToArmadilloView not supported for bool");
+    } else {
+        const auto &t = m_tensor->dl_tensor;
+        return {arma::Mat<T>(static_cast<T *>(t.data), t.shape[0], t.shape[1],
+                             false, true),
+                m_tensor};
+    }
 }
 
 template <typename T> ArmadilloView<T> ndarray<T>::ToArmadilloView() const {
@@ -325,10 +370,14 @@ template <typename T> ArmadilloView<T> ndarray<T>::ToArmadilloView() const {
             "ToArmadilloView only supported for 2D arrays");
     }
 
-    const auto &t = m_tensor->dl_tensor;
-    return {arma::Mat<T>(static_cast<T *>(t.data), t.shape[0], t.shape[1],
-                         false, true),
-            m_tensor};
+    if constexpr (std::is_same_v<T, bool>) {
+        throw std::runtime_error("ToArmadilloView not supported for bool");
+    } else {
+        const auto &t = m_tensor->dl_tensor;
+        return {arma::Mat<T>(static_cast<T *>(t.data), t.shape[0], t.shape[1],
+                             false, true),
+                m_tensor};
+    }
 }
 
 template <typename T> DLManagedTensor *ndarray<T>::ToDLPack() const {
@@ -371,7 +420,7 @@ ndarray<T> ndarray<T>::FromDLPack(DLManagedTensor *managed_tensor) {
     const auto &t = managed_tensor->dl_tensor;
     if (!IsExpectedDType<T>(t)) {
         ManagedTensorDeleter(managed_tensor);
-        throw std::runtime_error("FromDLPack expects matching floating dtype");
+        throw std::runtime_error("FromDLPack expects matching dtype");
     }
 
     return ndarray<T>(
@@ -380,34 +429,88 @@ ndarray<T> ndarray<T>::FromDLPack(DLManagedTensor *managed_tensor) {
 
 template <typename T>
 ndarray<T> ndarray<T>::Add(const ndarray<T> &other) const {
-    return ArmaOp(*this, other, "Add",
-                  [](const arma::Mat<T> &a, const arma::Mat<T> &b) {
-                      return arma::Mat<T>(a + b);
-                  });
+    if constexpr (std::is_same_v<T, bool>) {
+        if (!m_tensor || !other.m_tensor) {
+            throw std::runtime_error("Cannot Add empty arrays");
+        }
+        const auto shape_a = GetShape();
+        const auto shape_b = other.GetShape();
+        if (shape_a.size() != 2 || shape_b.size() != 2) {
+            throw std::runtime_error("Add only supported for 2D arrays");
+        }
+        if (shape_a[0] != shape_b[0] || shape_a[1] != shape_b[1]) {
+            throw std::runtime_error("Shape mismatch for Add");
+        }
+
+        ndarray<T> out(shape_a, GetDevice());
+        for (int64_t r = 0; r < shape_a[0]; ++r) {
+            for (int64_t c = 0; c < shape_a[1]; ++c) {
+                out.At(r, c) = At(r, c) || other.At(r, c);
+            }
+        }
+        return out;
+    } else {
+        return ArmaOp(*this, other, "Add",
+                      [](const arma::Mat<T> &a, const arma::Mat<T> &b) {
+                          return arma::Mat<T>(a + b);
+                      });
+    }
 }
 
 template <typename T>
 ndarray<T> ndarray<T>::Subtract(const ndarray<T> &other) const {
-    return ArmaOp(*this, other, "Subtract",
-                  [](const arma::Mat<T> &a, const arma::Mat<T> &b) {
-                      return arma::Mat<T>(a - b);
-                  });
+    if constexpr (std::is_same_v<T, bool>) {
+        (void)other;
+        throw std::runtime_error("Subtract not supported for bool arrays");
+    } else {
+        return ArmaOp(*this, other, "Subtract",
+                      [](const arma::Mat<T> &a, const arma::Mat<T> &b) {
+                          return arma::Mat<T>(a - b);
+                      });
+    }
 }
 
 template <typename T>
 ndarray<T> ndarray<T>::Multiply(const ndarray<T> &other) const {
-    return ArmaOp(*this, other, "Multiply",
-                  [](const arma::Mat<T> &a, const arma::Mat<T> &b) {
-                      return arma::Mat<T>(a % b);
-                  });
+    if constexpr (std::is_same_v<T, bool>) {
+        if (!m_tensor || !other.m_tensor) {
+            throw std::runtime_error("Cannot Multiply empty arrays");
+        }
+        const auto shape_a = GetShape();
+        const auto shape_b = other.GetShape();
+        if (shape_a.size() != 2 || shape_b.size() != 2) {
+            throw std::runtime_error("Multiply only supported for 2D arrays");
+        }
+        if (shape_a[0] != shape_b[0] || shape_a[1] != shape_b[1]) {
+            throw std::runtime_error("Shape mismatch for Multiply");
+        }
+
+        ndarray<T> out(shape_a, GetDevice());
+        for (int64_t r = 0; r < shape_a[0]; ++r) {
+            for (int64_t c = 0; c < shape_a[1]; ++c) {
+                out.At(r, c) = At(r, c) && other.At(r, c);
+            }
+        }
+        return out;
+    } else {
+        return ArmaOp(*this, other, "Multiply",
+                      [](const arma::Mat<T> &a, const arma::Mat<T> &b) {
+                          return arma::Mat<T>(a % b);
+                      });
+    }
 }
 
 template <typename T>
 ndarray<T> ndarray<T>::Divide(const ndarray<T> &other) const {
-    return ArmaOp(*this, other, "Divide",
-                  [](const arma::Mat<T> &a, const arma::Mat<T> &b) {
-                      return arma::Mat<T>(a / b);
-                  });
+    if constexpr (std::is_same_v<T, bool>) {
+        (void)other;
+        throw std::runtime_error("Divide not supported for bool arrays");
+    } else {
+        return ArmaOp(*this, other, "Divide",
+                      [](const arma::Mat<T> &a, const arma::Mat<T> &b) {
+                          return arma::Mat<T>(a / b);
+                      });
+    }
 }
 
 template <typename T>
@@ -432,6 +535,11 @@ ndarray<T> ndarray<T>::operator/(const ndarray<T> &other) const {
 
 template class ndarray<float>;
 template class ndarray<double>;
+template class ndarray<int32_t>;
+template class ndarray<int64_t>;
+template class ndarray<std::complex<float>>;
+template class ndarray<std::complex<double>>;
+template class ndarray<bool>;
 
 template float &ndarray<float>::At();
 template const float &ndarray<float>::At() const;
@@ -448,5 +556,51 @@ template const double &ndarray<double>::At<int64_t>(int64_t) const;
 template double &ndarray<double>::At<int64_t, int64_t>(int64_t, int64_t);
 template const double &ndarray<double>::At<int64_t, int64_t>(int64_t,
                                                              int64_t) const;
+
+template int32_t &ndarray<int32_t>::At();
+template const int32_t &ndarray<int32_t>::At() const;
+template int32_t &ndarray<int32_t>::At<int64_t>(int64_t);
+template const int32_t &ndarray<int32_t>::At<int64_t>(int64_t) const;
+template int32_t &ndarray<int32_t>::At<int64_t, int64_t>(int64_t, int64_t);
+template const int32_t &ndarray<int32_t>::At<int64_t, int64_t>(int64_t,
+                                                               int64_t) const;
+
+template int64_t &ndarray<int64_t>::At();
+template const int64_t &ndarray<int64_t>::At() const;
+template int64_t &ndarray<int64_t>::At<int64_t>(int64_t);
+template const int64_t &ndarray<int64_t>::At<int64_t>(int64_t) const;
+template int64_t &ndarray<int64_t>::At<int64_t, int64_t>(int64_t, int64_t);
+template const int64_t &ndarray<int64_t>::At<int64_t, int64_t>(int64_t,
+                                                               int64_t) const;
+
+template std::complex<float> &ndarray<std::complex<float>>::At();
+template const std::complex<float> &ndarray<std::complex<float>>::At() const;
+template std::complex<float> &
+ndarray<std::complex<float>>::At<int64_t>(int64_t);
+template const std::complex<float> &
+ndarray<std::complex<float>>::At<int64_t>(int64_t) const;
+template std::complex<float> &
+ndarray<std::complex<float>>::At<int64_t, int64_t>(int64_t, int64_t);
+template const std::complex<float> &
+ndarray<std::complex<float>>::At<int64_t, int64_t>(int64_t, int64_t) const;
+
+template std::complex<double> &ndarray<std::complex<double>>::At();
+template const std::complex<double> &ndarray<std::complex<double>>::At() const;
+template std::complex<double> &
+ndarray<std::complex<double>>::At<int64_t>(int64_t);
+template const std::complex<double> &
+ndarray<std::complex<double>>::At<int64_t>(int64_t) const;
+template std::complex<double> &
+ndarray<std::complex<double>>::At<int64_t, int64_t>(int64_t, int64_t);
+template const std::complex<double> &
+ndarray<std::complex<double>>::At<int64_t, int64_t>(int64_t, int64_t) const;
+
+template bool &ndarray<bool>::At();
+template const bool &ndarray<bool>::At() const;
+template bool &ndarray<bool>::At<int64_t>(int64_t);
+template const bool &ndarray<bool>::At<int64_t>(int64_t) const;
+template bool &ndarray<bool>::At<int64_t, int64_t>(int64_t, int64_t);
+template const bool &ndarray<bool>::At<int64_t, int64_t>(int64_t,
+                                                         int64_t) const;
 
 } // namespace ndarray

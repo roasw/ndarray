@@ -1,4 +1,5 @@
 #include <cmath>
+#include <complex>
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
@@ -22,21 +23,77 @@ template <> struct TypeName<float> {
 template <> struct TypeName<double> {
     static constexpr std::string_view value = "double";
 };
+template <> struct TypeName<int32_t> {
+    static constexpr std::string_view value = "int32";
+};
+template <> struct TypeName<int64_t> {
+    static constexpr std::string_view value = "int64";
+};
+template <> struct TypeName<std::complex<float>> {
+    static constexpr std::string_view value = "complex32";
+};
+template <> struct TypeName<std::complex<double>> {
+    static constexpr std::string_view value = "complex64";
+};
+template <> struct TypeName<bool> {
+    static constexpr std::string_view value = "bool";
+};
 
-template <typename T> constexpr T Epsilon();
-template <> constexpr float Epsilon<float>() { return 1e-5f; }
+template <typename T> constexpr double Epsilon();
+template <> constexpr double Epsilon<float>() { return 1e-5; }
 template <> constexpr double Epsilon<double>() { return 1e-10; }
+template <> constexpr double Epsilon<int32_t>() { return 0.0; }
+template <> constexpr double Epsilon<int64_t>() { return 0.0; }
+template <> constexpr double Epsilon<std::complex<float>>() { return 1e-5; }
+template <> constexpr double Epsilon<std::complex<double>>() { return 1e-10; }
+template <> constexpr double Epsilon<bool>() { return 0.0; }
 
 template <typename T> constexpr uint8_t DtypeBits();
 template <> constexpr uint8_t DtypeBits<float>() { return 32; }
 template <> constexpr uint8_t DtypeBits<double>() { return 64; }
+template <> constexpr uint8_t DtypeBits<int32_t>() { return 32; }
+template <> constexpr uint8_t DtypeBits<int64_t>() { return 64; }
+template <> constexpr uint8_t DtypeBits<std::complex<float>>() { return 64; }
+template <> constexpr uint8_t DtypeBits<std::complex<double>>() { return 128; }
+template <> constexpr uint8_t DtypeBits<bool>() { return 8; }
+
+template <typename T> constexpr uint8_t DtypeCode();
+template <> constexpr uint8_t DtypeCode<float>() { return kDLFloat; }
+template <> constexpr uint8_t DtypeCode<double>() { return kDLFloat; }
+template <> constexpr uint8_t DtypeCode<int32_t>() { return kDLInt; }
+template <> constexpr uint8_t DtypeCode<int64_t>() { return kDLInt; }
+template <> constexpr uint8_t DtypeCode<std::complex<float>>() {
+    return kDLComplex;
+}
+template <> constexpr uint8_t DtypeCode<std::complex<double>>() {
+    return kDLComplex;
+}
+template <> constexpr uint8_t DtypeCode<bool>() { return kDLBool; }
+
+template <typename T> std::string ScalarToString(const T &value) {
+    if constexpr (std::is_same_v<T, std::complex<float>> ||
+                  std::is_same_v<T, std::complex<double>>) {
+        return std::to_string(static_cast<double>(value.real())) + "+" +
+               std::to_string(static_cast<double>(value.imag())) + "i";
+    } else {
+        return std::to_string(static_cast<double>(value));
+    }
+}
+
+template <typename T> double DiffMagnitude(T a, T b) {
+    if constexpr (std::is_same_v<T, std::complex<float>> ||
+                  std::is_same_v<T, std::complex<double>>) {
+        return std::abs(a - b);
+    } else {
+        return std::fabs(static_cast<double>(a) - static_cast<double>(b));
+    }
+}
 
 template <typename T>
-void require_near(T a, T b, const std::string &msg, T eps = Epsilon<T>()) {
-    if (std::fabs(a - b) > eps) {
-        throw std::runtime_error(
-            msg + " (" + std::to_string(static_cast<double>(a)) +
-            " != " + std::to_string(static_cast<double>(b)) + ")");
+void require_near(T a, T b, const std::string &msg, double eps = Epsilon<T>()) {
+    if (DiffMagnitude(a, b) > eps) {
+        throw std::runtime_error(msg + " (" + ScalarToString(a) +
+                                 " != " + ScalarToString(b) + ")");
     }
 }
 
@@ -152,6 +209,17 @@ template <typename T> void TestArmaViewSharesData() {
                  "arma view reads ndarray data");
 }
 
+template <> void TestArmaViewSharesData<bool>() {
+    ndarray::ndarray<bool> a({3, 4});
+    bool threw = false;
+    try {
+        (void)a.ToArmadilloView();
+    } catch (const std::runtime_error &) {
+        threw = true;
+    }
+    require(threw, "bool ToArmadilloView should throw");
+}
+
 template <typename T> void TestDlpackZeroCopyAndMetadata() {
     ndarray::ndarray<T> a({3, 4});
     DLManagedTensor *mt = a.ToDLPack();
@@ -164,7 +232,10 @@ template <typename T> void TestDlpackZeroCopyAndMetadata() {
     require(mt->dl_tensor.shape[1] == 4, "DLPack shape[1]");
     require(mt->dl_tensor.strides[0] == 1, "DLPack strides[0]");
     require(mt->dl_tensor.strides[1] == 3, "DLPack strides[1]");
-    require(mt->dl_tensor.dtype.code == kDLFloat, "DLPack dtype code");
+    require(mt->dl_tensor.dtype.code == DtypeCode<T>(),
+            "DLPack dtype code expected " +
+                std::to_string(static_cast<int>(DtypeCode<T>())) + ", got " +
+                std::to_string(static_cast<int>(mt->dl_tensor.dtype.code)));
     require(mt->dl_tensor.dtype.bits == DtypeBits<T>(), "DLPack dtype bits");
     require(mt->dl_tensor.device.device_type == kDLCPU, "DLPack device");
 
@@ -185,6 +256,21 @@ template <typename T> void TestArithmeticAddMultiply() {
     ndarray::ndarray<T> d = a * b;
     require_near(d.At(int64_t(1), int64_t(1)), static_cast<T>(15),
                  "multiply (1,1)");
+}
+
+template <> void TestArithmeticAddMultiply<bool>() {
+    ndarray::ndarray<bool> a({2, 2});
+    ndarray::ndarray<bool> b({2, 2});
+    a.At(int64_t(0), int64_t(0)) = true;
+    a.At(int64_t(1), int64_t(1)) = true;
+    b.At(int64_t(0), int64_t(0)) = true;
+    b.At(int64_t(1), int64_t(1)) = false;
+
+    ndarray::ndarray<bool> c = a + b;
+    require(c.At(int64_t(0), int64_t(0)) == true, "add (0,0)");
+
+    ndarray::ndarray<bool> d = a * b;
+    require(d.At(int64_t(1), int64_t(1)) == false, "multiply (1,1)");
 }
 
 template <typename T> void TestFromDlpackRoundtrip() {
@@ -208,7 +294,7 @@ template <typename T> void TestTorchFromDlpackZeroCopy() {
     require(t.data_ptr() == a.GetData(),
             "torch::fromDLPack data pointer must alias ndarray data");
 
-    T *ptr = t.data_ptr<T>();
+    T *ptr = reinterpret_cast<T *>(t.data_ptr());
     ptr[0] = static_cast<T>(17);
     require_near(a.At(int64_t(0), int64_t(0)), static_cast<T>(17),
                  "torch write-through should update ndarray");
@@ -266,7 +352,7 @@ template <typename T> void TestTorchViewOutlivesTemporaryNdarray() {
                 "torch tensor must alias temporary ndarray storage");
     }
 
-    T *ptr = t.data_ptr<T>();
+    T *ptr = reinterpret_cast<T *>(t.data_ptr());
     require_near(ptr[0], static_cast<T>(5),
                  "torch tensor must remain valid after ndarray destruction");
 
@@ -318,6 +404,11 @@ int main() {
     Counters counters;
     RunTypedSuite<float>(counters);
     RunTypedSuite<double>(counters);
+    RunTypedSuite<int32_t>(counters);
+    RunTypedSuite<int64_t>(counters);
+    RunTypedSuite<std::complex<float>>(counters);
+    RunTypedSuite<std::complex<double>>(counters);
+    RunTypedSuite<bool>(counters);
 
     std::cout << "\n"
               << counters.passed << " passed, " << counters.failed
