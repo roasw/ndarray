@@ -18,6 +18,15 @@ def parse_package_test_args(
     return parser.parse_args()
 
 
+def parse_dual_package_test_args(description: str) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument("--package-metadata", type=Path, required=True)
+    parser.add_argument("--kernel-package-metadata", type=Path, required=True)
+    parser.add_argument("--kernel-lib", type=Path, required=True)
+    parser.add_argument("--plots-dir", type=Path, required=True)
+    return parser.parse_args()
+
+
 def parse_kernel_test_args(description: str) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("--kernel-lib", type=Path, required=True)

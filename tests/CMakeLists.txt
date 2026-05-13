@@ -123,3 +123,16 @@ add_python_test_case(
     --kernel-lib
     $<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>
 )
+
+add_python_test_case(
+    python_upsample_2d_fourier_known_output
+    tests/python/test_upsample_2d_fourier_known_output.py
+    --package-metadata
+    ${UPSAMPLE_2D_FOURIER_METADATA_PATH}
+    --kernel-package-metadata
+    ${UPSAMPLE_2D_FOURIER_KERNEL_METADATA_PATH}
+    --kernel-lib
+    $<TARGET_FILE:${NDARRAY_TORCH_KERNEL_DSO_TARGET}>
+    --plots-dir
+    ${CMAKE_BINARY_DIR}/plots
+)

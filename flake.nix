@@ -86,6 +86,7 @@
                 python3
                 python3Packages.torch
                 python3Packages.pybind11
+                python3Packages.matplotlib
                 armadillo
               ]
               ++ pkgsStable.lib.optionals pkgsStable.stdenv.isDarwin [
