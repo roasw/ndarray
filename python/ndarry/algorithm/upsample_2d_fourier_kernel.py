@@ -8,6 +8,8 @@ from typing import Any
 import torch
 import torch.nn as nn
 
+from ndarry.op_names import UPSAMPLE_2D_FOURIER
+
 
 ALGORITHM_NAME = Path(__file__).stem
 
@@ -21,7 +23,7 @@ class Upsample2DFourierKernel(nn.Module):
         if factor_token.dtype != torch.float32:
             raise RuntimeError("Upsample factor token must be float32")
 
-        return torch.ops.ndarray.upsample_2d_fourier_cpu(x, factor_token)
+        return getattr(torch.ops.ndarray, UPSAMPLE_2D_FOURIER)(x, factor_token)
 
     @classmethod
     def export(cls, **config: Any) -> dict[str, Any]:

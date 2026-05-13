@@ -7,7 +7,7 @@ import unittest
 import numpy as np
 import torch
 
-from ndarry import from_torch, ndarray, to_torch
+from ndarry import from_torch, ndarray, new_f32, new_f64, to_torch
 
 
 class NdarrayDlpackBridgeTestBase(unittest.TestCase):
@@ -115,6 +115,23 @@ class NdarrayDlpackBridgeTestBase(unittest.TestCase):
         py_clone = to_torch(cpp_clone)
         py_bridged[0, 0] = 999.0
         self.assertNotEqual(float(py_clone[0, 0]), float(py_bridged[0, 0]))
+
+    def test_explicit_constructors_match_dtype_factory(self):
+        cpp_f32 = ndarray([2, 3], dtype=torch.float32)
+        cpp_f32_explicit = new_f32([2, 3])
+        self.assertEqual(cpp_f32.dtype, torch.float32)
+        self.assertEqual(cpp_f32_explicit.dtype, torch.float32)
+
+        cpp_f64 = ndarray([2, 3], dtype=torch.float64)
+        cpp_f64_explicit = new_f64([2, 3])
+        self.assertEqual(cpp_f64.dtype, torch.float64)
+        self.assertEqual(cpp_f64_explicit.dtype, torch.float64)
+
+    def test_invalid_dtype_error_recommends_explicit_constructors(self):
+        with self.assertRaises(TypeError) as err:
+            _ = ndarray([2, 3], dtype=torch.int32)
+        self.assertIn("new_f32()", str(err.exception))
+        self.assertIn("new_f64()", str(err.exception))
 
     def test_repeated_roundtrip_keeps_aliasing(self):
         py_base, cpp_array = self._make_py_cpp_pair()

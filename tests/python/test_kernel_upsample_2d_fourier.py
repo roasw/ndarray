@@ -10,6 +10,7 @@ import torch
 
 from common import parse_kernel_test_args, run_test_case
 from ndarry.algorithm.upsample_2d_fourier import Upsample2DFourier
+from ndarry.op_names import UPSAMPLE_2D_FOURIER
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,7 +30,7 @@ class KernelUpsample2DFourierTests(unittest.TestCase):
 
     @staticmethod
     def _kernel_op() -> Any:
-        return getattr(torch.ops.ndarray, "upsample_2d_fourier_cpu")
+        return getattr(torch.ops.ndarray, UPSAMPLE_2D_FOURIER)
 
     def _assert_match(self, shape: tuple[int, int], factor: int, dtype: torch.dtype):
         py_input = torch.randn(*shape, dtype=dtype)

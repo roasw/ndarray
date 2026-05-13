@@ -14,45 +14,49 @@
 
 namespace kernel {
 
+namespace {
+
+constexpr const char *kUpsampleOpName = "upsample_2d_fourier";
+
+} // namespace
+
 int64_t ValidateFactorToken(const at::Tensor &factor_token) {
     if (factor_token.dim() != 1) {
-        throw std::runtime_error(
-            "upsample_2d_fourier_cpu expects 1D factor_token");
+        throw std::runtime_error("upsample_2d_fourier expects 1D factor_token");
     }
     if (factor_token.scalar_type() != at::kFloat) {
         throw std::runtime_error(
-            "upsample_2d_fourier_cpu expects float32 factor_token");
+            "upsample_2d_fourier expects float32 factor_token");
     }
 
     const int64_t factor = factor_token.size(0);
     if (factor < 1) {
-        throw std::runtime_error("upsample_2d_fourier_cpu expects factor >= 1");
+        throw std::runtime_error("upsample_2d_fourier expects factor >= 1");
     }
     return factor;
 }
 
 void ValidateFactorTokenForMeta(const at::Tensor &factor_token) {
     if (factor_token.dim() != 1) {
-        throw std::runtime_error(
-            "upsample_2d_fourier_cpu expects 1D factor_token");
+        throw std::runtime_error("upsample_2d_fourier expects 1D factor_token");
     }
     if (factor_token.scalar_type() != at::kFloat) {
         throw std::runtime_error(
-            "upsample_2d_fourier_cpu expects float32 factor_token");
+            "upsample_2d_fourier expects float32 factor_token");
     }
 }
 
 at::Tensor Upsample2DFourierCpu(const at::Tensor &x,
                                 const at::Tensor &factor_token) {
     if (!x.device().is_cpu()) {
-        throw std::runtime_error("upsample_2d_fourier_cpu expects CPU input");
+        throw std::runtime_error("upsample_2d_fourier expects CPU input");
     }
     if (x.dim() != 2) {
-        throw std::runtime_error("upsample_2d_fourier_cpu expects 2D input");
+        throw std::runtime_error("upsample_2d_fourier expects 2D input");
     }
     if (x.scalar_type() != at::kFloat && x.scalar_type() != at::kDouble) {
         throw std::runtime_error(
-            "upsample_2d_fourier_cpu expects float32/float64 input");
+            "upsample_2d_fourier expects float32/float64 input");
     }
 
     const int64_t factor = ValidateFactorToken(factor_token);
@@ -85,11 +89,11 @@ at::Tensor Upsample2DFourierCpu(const at::Tensor &x,
 at::Tensor Upsample2DFourierMeta(const at::Tensor &x,
                                  const at::Tensor &factor_token) {
     if (x.dim() != 2) {
-        throw std::runtime_error("upsample_2d_fourier_cpu expects 2D input");
+        throw std::runtime_error("upsample_2d_fourier expects 2D input");
     }
     if (x.scalar_type() != at::kFloat && x.scalar_type() != at::kDouble) {
         throw std::runtime_error(
-            "upsample_2d_fourier_cpu expects float32/float64 input");
+            "upsample_2d_fourier expects float32/float64 input");
     }
 
     ValidateFactorTokenForMeta(factor_token);
@@ -105,13 +109,13 @@ at::Tensor Upsample2DFourierMeta(const at::Tensor &x,
 } // namespace kernel
 
 TORCH_LIBRARY(ndarray, m) {
-    m.def("upsample_2d_fourier_cpu(Tensor x, Tensor factor_token) -> Tensor");
+    m.def("upsample_2d_fourier(Tensor x, Tensor factor_token) -> Tensor");
 }
 
 TORCH_LIBRARY_IMPL(ndarray, CPU, m) {
-    m.impl("upsample_2d_fourier_cpu", kernel::Upsample2DFourierCpu);
+    m.impl(kernel::kUpsampleOpName, kernel::Upsample2DFourierCpu);
 }
 
 TORCH_LIBRARY_IMPL(ndarray, Meta, m) {
-    m.impl("upsample_2d_fourier_cpu", kernel::Upsample2DFourierMeta);
+    m.impl(kernel::kUpsampleOpName, kernel::Upsample2DFourierMeta);
 }

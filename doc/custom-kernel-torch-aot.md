@@ -26,15 +26,15 @@
 
 ```cpp
 TORCH_LIBRARY(ndarray, m) {
-    m.def("upsample_2d_fourier_cpu(Tensor x, Tensor factor_token) -> Tensor");
+    m.def("upsample_2d_fourier(Tensor x, Tensor factor_token) -> Tensor");
 }
 
 TORCH_LIBRARY_IMPL(ndarray, CPU, m) {
-    m.impl("upsample_2d_fourier_cpu", kernel::Upsample2DFourierCpu);
+    m.impl("upsample_2d_fourier", kernel::Upsample2DFourierCpu);
 }
 
 TORCH_LIBRARY_IMPL(ndarray, Meta, m) {
-    m.impl("upsample_2d_fourier_cpu", kernel::Upsample2DFourierMeta);
+    m.impl("upsample_2d_fourier", kernel::Upsample2DFourierMeta);
 }
 ```
 
@@ -59,7 +59,7 @@ TORCH_LIBRARY_IMPL(ndarray, Meta, m) {
 
 新增算法类（例如 `Upsample2DFourierKernel`）：
 
-- `forward()` 内直接调用 `torch.ops.ndarray.upsample_2d_fourier_cpu(...)`
+- `forward()` 内直接调用 `torch.ops.ndarray.upsample_2d_fourier(...)`
 - `export(**config)` 中先 `torch.ops.load_library(kernel_lib)`
 - 再执行 `torch.export.export(...)`
 
@@ -96,6 +96,12 @@ TORCH_LIBRARY_IMPL(ndarray, Meta, m) {
 - `ALGORITHM_CLASS` 可选；默认自动发现模块内唯一候选类（`nn.Module` 子类且定义 `export`）。
 - `OUTPUT_DIR` 可选；默认 `${CMAKE_BINARY_DIR}/artifacts`。
 - `DEPENDS` 默认会包含 `ALGORITHM_FILE`；仅在需要额外依赖（如 kernel DSO target）时追加。
+
+## 自定义 op 命名策略
+
+- 采用后端无关的 canonical schema 名：`upsample_2d_fourier`。
+- CPU/Meta/CUDA 等实现通过 dispatcher key 分发（`TORCH_LIBRARY_IMPL`），不在 schema 名里编码后端。
+- Python 侧统一引用 `python/ndarry/op_names.py` 中的常量，避免字符串散落在多处。
 
 ## C++ 运行时加载 `.pt2`
 
