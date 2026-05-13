@@ -15,6 +15,7 @@ find_package(Doxygen QUIET)
 include(cmake/AOTICompile.cmake)
 include(cmake/AddAlgorithmLibrary.cmake)
 include(cmake/AddTorchKernelLibrary.cmake)
+include(cmake/AddCppTestCase.cmake)
 include(cmake/AddPythonTestCase.cmake)
 
 add_library(ndarray_project_options INTERFACE)
