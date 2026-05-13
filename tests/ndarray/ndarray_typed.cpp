@@ -218,6 +218,65 @@ template <typename T> void TestTorchFromDlpackZeroCopy() {
                  "ndarray write-through should update torch view");
 }
 
+template <typename T> void TestRepeatedFromDlpackRoundtripZeroCopy() {
+    ndarray::ndarray<T> a({2, 3});
+    a.At(int64_t(0), int64_t(0)) = static_cast<T>(1);
+
+    for (int64_t i = 0; i < 128; ++i) {
+        ndarray::ndarray<T> b = ndarray::ndarray<T>::FromDLPack(a.ToDLPack());
+        require(b.GetData() == a.GetData(),
+                "repeated FromDLPack must preserve aliasing");
+
+        b.At(int64_t(0), int64_t(0)) = static_cast<T>(i);
+        require_near(
+            a.At(int64_t(0), int64_t(0)), static_cast<T>(i),
+            "repeated FromDLPack write-through must preserve zero-copy");
+    }
+}
+
+template <typename T>
+void TestFromDlpackKeepsStorageAliveAfterSourceDestroyed() {
+    ndarray::ndarray<T> survivor;
+    T *source_data = nullptr;
+
+    {
+        ndarray::ndarray<T> source({2, 3});
+        source.At(int64_t(0), int64_t(1)) = static_cast<T>(11);
+        source_data = source.GetData();
+        survivor = ndarray::ndarray<T>::FromDLPack(source.ToDLPack());
+    }
+
+    require(survivor.GetData() == source_data,
+            "FromDLPack survivor must keep source storage alive");
+    require_near(survivor.At(int64_t(0), int64_t(1)), static_cast<T>(11),
+                 "value must remain readable after source destruction");
+
+    survivor.At(int64_t(1), int64_t(2)) = static_cast<T>(37);
+    require_near(survivor.At(int64_t(1), int64_t(2)), static_cast<T>(37),
+                 "survivor must remain writable after source destruction");
+}
+
+template <typename T> void TestTorchViewOutlivesTemporaryNdarray() {
+    at::Tensor t;
+    {
+        ndarray::ndarray<T> tmp({2, 3});
+        tmp.At(int64_t(0), int64_t(0)) = static_cast<T>(5);
+        t = at::fromDLPack(tmp.ToDLPack());
+        require(t.data_ptr() == tmp.GetData(),
+                "torch tensor must alias temporary ndarray storage");
+    }
+
+    T *ptr = t.data_ptr<T>();
+    require_near(ptr[0], static_cast<T>(5),
+                 "torch tensor must remain valid after ndarray destruction");
+
+    ptr[1] = static_cast<T>(19);
+    ndarray::ndarray<T> b = ndarray::ndarray<T>::FromDLPack(at::toDLPack(t));
+    require_near(
+        b.At(int64_t(1), int64_t(0)), static_cast<T>(19),
+        "torch mutation must remain visible through ndarray roundtrip");
+}
+
 template <typename T> void RunTypedSuite(Counters &counters) {
     const std::string prefix =
         std::string("[") + std::string(TypeName<T>::value) + "] ";
@@ -243,6 +302,12 @@ template <typename T> void RunTypedSuite(Counters &counters) {
             [] { TestFromDlpackRoundtrip<T>(); });
     RunCase(prefix + "torch_from_dlpack_zero_copy", counters,
             [] { TestTorchFromDlpackZeroCopy<T>(); });
+    RunCase(prefix + "repeated_from_dlpack_roundtrip_zero_copy", counters,
+            [] { TestRepeatedFromDlpackRoundtripZeroCopy<T>(); });
+    RunCase(prefix + "from_dlpack_keeps_storage_alive", counters,
+            [] { TestFromDlpackKeepsStorageAliveAfterSourceDestroyed<T>(); });
+    RunCase(prefix + "torch_view_outlives_temporary_ndarray", counters,
+            [] { TestTorchViewOutlivesTemporaryNdarray<T>(); });
 }
 
 } // namespace

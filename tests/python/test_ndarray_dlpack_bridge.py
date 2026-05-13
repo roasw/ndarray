@@ -116,6 +116,56 @@ class NdarrayDlpackBridgeTestBase(unittest.TestCase):
         py_bridged[0, 0] = 999.0
         self.assertNotEqual(float(py_clone[0, 0]), float(py_bridged[0, 0]))
 
+    def test_repeated_roundtrip_keeps_aliasing(self):
+        py_base, cpp_array = self._make_py_cpp_pair()
+
+        for i in range(128):
+            py_bridged = to_torch(cpp_array)
+            self.assertEqual(py_bridged.data_ptr(), cpp_array.data_ptr())
+
+            value = float(i + 1)
+            py_bridged[0, 0] = value
+            self.assertEqual(float(py_base[0, 0]), value)
+
+            cpp_again = from_torch(py_bridged)
+            self.assertEqual(cpp_again.data_ptr(), py_bridged.data_ptr())
+            self.assertEqual(cpp_again.data_ptr(), cpp_array.data_ptr())
+
+            py_roundtrip = to_torch(cpp_again)
+            self.assertEqual(py_roundtrip.data_ptr(), py_base.data_ptr())
+            self.assertEqual(float(py_roundtrip[0, 0]), value)
+
+    def test_from_torch_survives_source_tensor_scope(self):
+        def make_cpp_array():
+            py_local = torch.arange(6, dtype=self.dtype).reshape(2, 3)
+            cpp_local = from_torch(py_local)
+            return cpp_local, py_local.data_ptr()
+
+        cpp_array, source_ptr = make_cpp_array()
+        self.assertEqual(cpp_array.data_ptr(), source_ptr)
+
+        py_after = to_torch(cpp_array)
+        self.assertEqual(py_after.data_ptr(), source_ptr)
+        py_after[1, 2] = 321.0
+        self.assertEqual(float(py_after[1, 2]), 321.0)
+
+    def test_to_torch_survives_cpp_scope(self):
+        def make_torch_view():
+            cpp_local = ndarray([2, 3], dtype=self.dtype)
+            py_local = to_torch(cpp_local)
+            py_local[0, 1] = 77.0
+            return py_local, cpp_local.data_ptr()
+
+        py_view, cpp_ptr = make_torch_view()
+        self.assertEqual(py_view.data_ptr(), cpp_ptr)
+        self.assertEqual(float(py_view[0, 1]), 77.0)
+
+        py_view[1, 0] = 88.0
+        self.assertEqual(float(py_view[1, 0]), 88.0)
+
+        cpp_again = from_torch(py_view)
+        self.assertEqual(cpp_again.data_ptr(), py_view.data_ptr())
+
 
 class NdarrayDlpackBridgeFloat32Tests(NdarrayDlpackBridgeTestBase):
     dtype = torch.float32
