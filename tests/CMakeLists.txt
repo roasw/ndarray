@@ -1,3 +1,7 @@
+#######
+# C++ #
+#######
+
 add_executable(dlpack_test demo/dlpack_column_major.cpp)
 target_link_libraries(dlpack_test PRIVATE ndarray ndarray_project_options)
 
@@ -80,6 +84,14 @@ add_dependencies(
 add_test(
     NAME upsample_2d_fourier_kernel_runtime
     COMMAND upsample_2d_fourier_kernel_runtime_test
+)
+
+##########
+# Python #
+##########
+
+set(PYTHON_TEST_ENV
+    "PYTHONPATH=${CMAKE_BINARY_DIR}/python:${CMAKE_SOURCE_DIR}/python:$ENV{PYTHONPATH}"
 )
 
 add_python_test_case(

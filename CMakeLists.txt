@@ -112,10 +112,6 @@ add_aoti_compile_target(
 # Test cases #
 ##############
 
-set(PYTHON_TEST_ENV
-    "PYTHONPATH=${CMAKE_BINARY_DIR}/python:${CMAKE_SOURCE_DIR}/python:$ENV{PYTHONPATH}"
-)
-
 enable_testing()
 add_subdirectory(tests)
 
