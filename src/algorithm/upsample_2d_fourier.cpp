@@ -8,14 +8,14 @@
 
 namespace algorithm {
 
-Upsample2DFourier::Upsample2DFourier(const std::string &metadata_path,
-                                     int64_t upsample_factor)
-    : m_upsampleFactor(upsample_factor) {
+Upsample2DFourier::Upsample2DFourier(const std::string &metadataPath,
+                                     int64_t upsampleFactor)
+    : m_upsampleFactor(upsampleFactor) {
     if (m_upsampleFactor < 1) {
         throw std::runtime_error("Upsample factor must be >= 1");
     }
 
-    m_paths = detail::ResolveTypedPackagePaths(metadata_path,
+    m_paths = detail::ResolveTypedPackagePaths(metadataPath,
                                                detail::FileStem(__FILE__));
 }
 

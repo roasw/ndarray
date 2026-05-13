@@ -61,14 +61,14 @@ int64_t NormalizeDim(int64_t dim, int64_t ndim) {
 }
 
 int64_t ValueAtDim(const std::vector<int64_t> &values, int64_t dim) {
-    const int64_t index =
+    const int64_t dimIndex =
         NormalizeDim(dim, static_cast<int64_t>(values.size()));
-    return values[index];
+    return values[dimIndex];
 }
 
-std::vector<int64_t> ShapeFromIterable(py::iterable shape_like) {
+std::vector<int64_t> ShapeFromIterable(py::iterable shapeLike) {
     std::vector<int64_t> shape;
-    for (py::handle value : shape_like) {
+    for (py::handle value : shapeLike) {
         shape.push_back(value.cast<int64_t>());
     }
     return shape;
@@ -103,8 +103,8 @@ template <typename T> int64_t Numel(const ndarray::ndarray<T> &array) {
 
 py::object TorchModule() { return py::module::import("torch"); }
 
-py::object TorchDevice(c10::DeviceType device_type) {
-    switch (device_type) {
+py::object TorchDevice(c10::DeviceType deviceType) {
+    switch (deviceType) {
     case c10::DeviceType::CPU:
         return TorchModule().attr("device")("cpu");
     case c10::DeviceType::CUDA:
@@ -114,8 +114,8 @@ py::object TorchDevice(c10::DeviceType device_type) {
     }
 }
 
-py::tuple DlpackDeviceTuple(c10::DeviceType device_type) {
-    switch (device_type) {
+py::tuple DlpackDeviceTuple(c10::DeviceType deviceType) {
+    switch (deviceType) {
     case c10::DeviceType::CPU:
         return py::make_tuple(1, 0);
     case c10::DeviceType::CUDA:
@@ -151,8 +151,8 @@ template <typename T> py::object Device(const ndarray::ndarray<T> &array) {
     return TorchDevice(array.GetDevice());
 }
 
-std::string DeviceName(c10::DeviceType device_type) {
-    switch (device_type) {
+std::string DeviceName(c10::DeviceType deviceType) {
+    switch (deviceType) {
     case c10::DeviceType::CPU:
         return "cpu";
     case c10::DeviceType::CUDA:
@@ -163,28 +163,28 @@ std::string DeviceName(c10::DeviceType device_type) {
 }
 
 template <typename T>
-bool IsContiguous(const ndarray::ndarray<T> &array, py::object memory_format) {
+bool IsContiguous(const ndarray::ndarray<T> &array, py::object memoryFormat) {
     at::Tensor tensor = ToTorchTensor(array);
-    py::object torch_tensor = py::cast(tensor);
-    if (memory_format.is_none()) {
-        return torch_tensor.attr("is_contiguous")().cast<bool>();
+    py::object torchTensor = py::cast(tensor);
+    if (memoryFormat.is_none()) {
+        return torchTensor.attr("is_contiguous")().cast<bool>();
     }
     py::dict kwargs;
-    kwargs["memory_format"] = memory_format;
-    return torch_tensor.attr("is_contiguous")(**kwargs).cast<bool>();
+    kwargs["memory_format"] = memoryFormat;
+    return torchTensor.attr("is_contiguous")(**kwargs).cast<bool>();
 }
 
 template <typename T> py::tuple DlpackDevice(const ndarray::ndarray<T> &array) {
     return DlpackDeviceTuple(array.GetDevice());
 }
 
-void DlpackCapsuleDestructor(PyObject *capsule) {
-    if (PyCapsule_IsValid(capsule, "used_dltensor") != 0) {
+void DlpackCapsuleDestructor(PyObject *dlpackCapsule) {
+    if (PyCapsule_IsValid(dlpackCapsule, "used_dltensor") != 0) {
         return;
     }
 
     DLManagedTensor *tensor = static_cast<DLManagedTensor *>(
-        PyCapsule_GetPointer(capsule, "dltensor"));
+        PyCapsule_GetPointer(dlpackCapsule, "dltensor"));
     if (tensor == nullptr) {
         PyErr_Clear();
         return;
@@ -270,8 +270,8 @@ py::class_<ndarray::ndarray<T>> BindNdarrayClass(py::module_ &module,
                                                  std::string_view name) {
     py::class_<ndarray::ndarray<T>> cls(module, name.data());
     cls.def(py::init<>())
-        .def(py::init([](py::iterable shape_like) {
-                 return ndarray::ndarray<T>(ShapeFromIterable(shape_like),
+        .def(py::init([](py::iterable shapeLike) {
+                 return ndarray::ndarray<T>(ShapeFromIterable(shapeLike),
                                             c10::DeviceType::CPU);
              }),
              py::arg("shape"))
@@ -318,56 +318,55 @@ py::class_<ndarray::ndarray<T>> BindNdarrayClass(py::module_ &module,
 }
 
 py::object TorchFunction(py::object, py::object func, py::object,
-                         py::tuple args, py::object kwargs_obj);
+                         py::tuple args, py::object kwargsObj);
 
 template <typename T>
 void BindTorchFunction(py::class_<ndarray::ndarray<T>> &cls) {
-    py::object classmethod_obj =
+    py::object classmethodObj =
         py::module::import("builtins").attr("classmethod");
-    py::object torch_function =
+    py::object torchFunction =
         py::cpp_function(&TorchFunction, py::name("__torch_function__"),
                          py::arg("cls"), py::arg("func"), py::arg("types"),
                          py::arg("args"), py::arg("kwargs") = py::none());
-    cls.attr("__torch_function__") = classmethod_obj(torch_function);
+    cls.attr("__torch_function__") = classmethodObj(torchFunction);
 }
 
 py::object TorchFunction(py::object, py::object func, py::object,
-                         py::tuple args, py::object kwargs_obj) {
+                         py::tuple args, py::object kwargsObj) {
 
-    py::tuple converted_args(args.size());
+    py::tuple convertedArgs(args.size());
     for (size_t i = 0; i < args.size(); ++i) {
-        converted_args[i] = MaybeToTorch(args[i]);
+        convertedArgs[i] = MaybeToTorch(args[i]);
     }
 
     py::dict kwargs;
-    if (!kwargs_obj.is_none()) {
-        py::dict kwargs_in = kwargs_obj.cast<py::dict>();
-        for (auto item : kwargs_in) {
+    if (!kwargsObj.is_none()) {
+        py::dict kwargsIn = kwargsObj.cast<py::dict>();
+        for (auto item : kwargsIn) {
             kwargs[item.first] = MaybeToTorch(item.second);
         }
     }
 
-    return func(*converted_args, **kwargs);
+    return func(*convertedArgs, **kwargs);
 }
 
 } // namespace
 
 PYBIND11_MODULE(_ndarray, module) {
-    auto cls_f32 = BindNdarrayClass<float>(module, "ndarray_f32");
-    auto cls_f64 = BindNdarrayClass<double>(module, "ndarray_f64");
-    auto cls_i32 = BindNdarrayClass<int32_t>(module, "ndarray_i32");
-    auto cls_i64 = BindNdarrayClass<int64_t>(module, "ndarray_i64");
-    auto cls_c32 = BindNdarrayClass<std::complex<float>>(module, "ndarray_c32");
-    auto cls_c64 =
-        BindNdarrayClass<std::complex<double>>(module, "ndarray_c64");
-    auto cls_b = BindNdarrayClass<bool>(module, "ndarray_b");
-    BindTorchFunction(cls_f32);
-    BindTorchFunction(cls_f64);
-    BindTorchFunction(cls_i32);
-    BindTorchFunction(cls_i64);
-    BindTorchFunction(cls_c32);
-    BindTorchFunction(cls_c64);
-    BindTorchFunction(cls_b);
+    auto clsF32 = BindNdarrayClass<float>(module, "ndarray_f32");
+    auto clsF64 = BindNdarrayClass<double>(module, "ndarray_f64");
+    auto clsI32 = BindNdarrayClass<int32_t>(module, "ndarray_i32");
+    auto clsI64 = BindNdarrayClass<int64_t>(module, "ndarray_i64");
+    auto clsC32 = BindNdarrayClass<std::complex<float>>(module, "ndarray_c32");
+    auto clsC64 = BindNdarrayClass<std::complex<double>>(module, "ndarray_c64");
+    auto clsB = BindNdarrayClass<bool>(module, "ndarray_b");
+    BindTorchFunction(clsF32);
+    BindTorchFunction(clsF64);
+    BindTorchFunction(clsI32);
+    BindTorchFunction(clsI64);
+    BindTorchFunction(clsC32);
+    BindTorchFunction(clsC64);
+    BindTorchFunction(clsB);
 
     module.def("from_torch", &FromTorchTensorDynamic, py::arg("tensor"));
     module.def("to_torch", &ToTorchDynamic, py::arg("array"));

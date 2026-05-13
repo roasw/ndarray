@@ -9,13 +9,13 @@
 namespace algorithm {
 
 Upsample2DFourierKernel::Upsample2DFourierKernel(
-    const std::string &metadata_path, int64_t upsample_factor)
-    : m_upsampleFactor(upsample_factor) {
+    const std::string &metadataPath, int64_t upsampleFactor)
+    : m_upsampleFactor(upsampleFactor) {
     if (m_upsampleFactor < 1) {
         throw std::runtime_error("Upsample factor must be >= 1");
     }
 
-    m_paths = detail::ResolveTypedPackagePaths(metadata_path,
+    m_paths = detail::ResolveTypedPackagePaths(metadataPath,
                                                detail::FileStem(__FILE__));
 }
 

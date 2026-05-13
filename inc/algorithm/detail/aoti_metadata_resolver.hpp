@@ -57,18 +57,18 @@ struct TypedPackagePaths {
 };
 
 inline std::unordered_map<std::string, std::string>
-LoadMetadataMap(const std::string &metadata_path) {
-    std::ifstream in(metadata_path);
+LoadMetadataMap(const std::string &metadataPath) {
+    std::ifstream in(metadataPath);
     if (!in.is_open()) {
         throw std::runtime_error("Failed to open AOTI metadata file: " +
-                                 metadata_path);
+                                 metadataPath);
     }
 
     std::unordered_map<std::string, std::string> metadata;
     std::string line;
-    int64_t line_no = 0;
+    int64_t lineNo = 0;
     while (std::getline(in, line)) {
-        ++line_no;
+        ++lineNo;
         if (line.empty()) {
             continue;
         }
@@ -76,23 +76,23 @@ LoadMetadataMap(const std::string &metadata_path) {
         const std::size_t eq = line.find('=');
         if (eq == std::string::npos) {
             throw std::runtime_error("Invalid metadata line in " +
-                                     metadata_path + " at line " +
-                                     std::to_string(line_no));
+                                     metadataPath + " at line " +
+                                     std::to_string(lineNo));
         }
 
         const std::string key = line.substr(0, eq);
         const std::string value = line.substr(eq + 1);
         if (key.empty() || value.empty()) {
             throw std::runtime_error(
-                "Invalid metadata entry in file: " + metadata_path +
-                " at line " + std::to_string(line_no));
+                "Invalid metadata entry in file: " + metadataPath +
+                " at line " + std::to_string(lineNo));
         }
         metadata[key] = value;
     }
 
     if (metadata.empty()) {
         throw std::runtime_error(
-            "No metadata entries found in metadata file: " + metadata_path);
+            "No metadata entries found in metadata file: " + metadataPath);
     }
 
     return metadata;
@@ -113,16 +113,16 @@ inline std::string FileStem(const std::string &path) {
 }
 
 inline TypedPackagePaths
-ResolveTypedPackagePaths(const std::string &metadata_path,
-                         const std::string &expected_algorithm_name) {
-    const std::string metadata_name = FileStem(metadata_path);
-    if (metadata_name != expected_algorithm_name) {
+ResolveTypedPackagePaths(const std::string &metadataPath,
+                         const std::string &expectedAlgorithmName) {
+    const std::string metadataName = FileStem(metadataPath);
+    if (metadataName != expectedAlgorithmName) {
         throw std::runtime_error("Metadata basename mismatch: expected " +
-                                 expected_algorithm_name + ", got " +
-                                 metadata_name);
+                                 expectedAlgorithmName + ", got " +
+                                 metadataName);
     }
 
-    const auto metadata = LoadMetadataMap(metadata_path);
+    const auto metadata = LoadMetadataMap(metadataPath);
 
     return {
         OptionalMetadataValue(metadata, "cpu_f32"),

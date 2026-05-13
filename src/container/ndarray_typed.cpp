@@ -71,8 +71,8 @@ int64_t NumElements(const DLTensor &t) {
     return n;
 }
 
-DLDevice ToDLDevice(c10::DeviceType device_type) {
-    switch (device_type) {
+DLDevice ToDLDevice(c10::DeviceType deviceType) {
+    switch (deviceType) {
     case c10::DeviceType::CPU:
         return {kDLCPU, 0};
     case c10::DeviceType::CUDA:
@@ -82,8 +82,8 @@ DLDevice ToDLDevice(c10::DeviceType device_type) {
     }
 }
 
-c10::DeviceType FromDLDevice(DLDeviceType device_type) {
-    switch (device_type) {
+c10::DeviceType FromDLDevice(DLDeviceType deviceType) {
+    switch (deviceType) {
     case kDLCPU:
         return c10::DeviceType::CPU;
     case kDLCUDA:
@@ -129,7 +129,7 @@ void ManagedTensorDeleter(DLManagedTensor *mt) {
 
 template <typename T>
 std::shared_ptr<DLManagedTensor>
-AllocateTensor(const std::vector<int64_t> &shape, c10::DeviceType device_type) {
+AllocateTensor(const std::vector<int64_t> &shape, c10::DeviceType deviceType) {
     static_assert(IsSupportedNdarrayType<T>::value,
                   "ndarray only supports configured scalar dtypes");
 
@@ -142,37 +142,37 @@ AllocateTensor(const std::vector<int64_t> &shape, c10::DeviceType device_type) {
         return n;
     }();
 
-    c10::Allocator *alloc = c10::GetAllocator(device_type);
-    c10::DataPtr data_ptr =
+    c10::Allocator *alloc = c10::GetAllocator(deviceType);
+    c10::DataPtr dataPtr =
         alloc->allocate(total * static_cast<int64_t>(sizeof(T)));
 
     auto *mt = new DLManagedTensor();
-    mt->dl_tensor.data = data_ptr.get();
-    mt->dl_tensor.device = ToDLDevice(device_type);
+    mt->dl_tensor.data = dataPtr.get();
+    mt->dl_tensor.device = ToDLDevice(deviceType);
     mt->dl_tensor.ndim = ndim;
     mt->dl_tensor.dtype = DTypeTraits<T>::kDType();
     mt->dl_tensor.byte_offset = 0;
 
-    int64_t *shape_ptr = nullptr;
-    int64_t *strides_ptr = nullptr;
+    int64_t *shapePtr = nullptr;
+    int64_t *stridesPtr = nullptr;
 
     if (ndim > 0) {
-        shape_ptr = new int64_t[ndim];
-        strides_ptr = new int64_t[ndim];
+        shapePtr = new int64_t[ndim];
+        stridesPtr = new int64_t[ndim];
 
         for (int i = 0; i < ndim; ++i) {
-            shape_ptr[i] = shape[i];
+            shapePtr[i] = shape[i];
         }
 
-        strides_ptr[0] = 1;
+        stridesPtr[0] = 1;
         for (int i = 1; i < ndim; ++i) {
-            strides_ptr[i] = strides_ptr[i - 1] * shape[i - 1];
+            stridesPtr[i] = stridesPtr[i - 1] * shape[i - 1];
         }
     }
 
-    mt->dl_tensor.shape = shape_ptr;
-    mt->dl_tensor.strides = strides_ptr;
-    mt->manager_ctx = new c10::DataPtr(std::move(data_ptr));
+    mt->dl_tensor.shape = shapePtr;
+    mt->dl_tensor.strides = stridesPtr;
+    mt->manager_ctx = new c10::DataPtr(std::move(dataPtr));
     mt->deleter = OwningDeleter;
 
     return {mt, OwningDeleter};
@@ -218,24 +218,24 @@ DataType &AtImpl(const DLTensor &tensor, DataType *data, Indices... indices) {
 
 template <typename T, typename Op>
 ndarray<T> ArmaOp(const ndarray<T> &a, const ndarray<T> &b,
-                  std::string_view op_name, Op op) {
+                  std::string_view opName, Op op) {
     if (!a.GetData() || !b.GetData()) {
-        throw std::runtime_error(std::string("Cannot ") + std::string(op_name) +
+        throw std::runtime_error(std::string("Cannot ") + std::string(opName) +
                                  " empty arrays");
     }
-    const auto shape_a = a.GetShape();
-    const auto shape_b = b.GetShape();
-    if (shape_a.size() != 2 || shape_b.size() != 2) {
-        throw std::runtime_error(std::string(op_name) +
+    const auto shapeA = a.GetShape();
+    const auto shapeB = b.GetShape();
+    if (shapeA.size() != 2 || shapeB.size() != 2) {
+        throw std::runtime_error(std::string(opName) +
                                  " only supported for 2D arrays");
     }
-    if (shape_a[0] != shape_b[0] || shape_a[1] != shape_b[1]) {
+    if (shapeA[0] != shapeB[0] || shapeA[1] != shapeB[1]) {
         throw std::runtime_error(std::string("Shape mismatch for ") +
-                                 std::string(op_name));
+                                 std::string(opName));
     }
 
-    arma::Mat<T> ma(a.GetData(), shape_a[0], shape_a[1], false, true);
-    arma::Mat<T> mb(b.GetData(), shape_b[0], shape_b[1], false, true);
+    arma::Mat<T> ma(a.GetData(), shapeA[0], shapeA[1], false, true);
+    arma::Mat<T> mb(b.GetData(), shapeB[0], shapeB[1], false, true);
     arma::Mat<T> result = op(ma, mb);
 
     ndarray<T> out(a.GetShape(), a.GetDevice());
@@ -253,8 +253,8 @@ ndarray<T>::ndarray(std::shared_ptr<DLManagedTensor> tensor)
 template <typename T> ndarray<T>::ndarray() : m_tensor(nullptr) {}
 
 template <typename T>
-ndarray<T>::ndarray(std::vector<int64_t> shape, c10::DeviceType device)
-    : m_tensor(AllocateTensor<T>(shape, device)) {}
+ndarray<T>::ndarray(std::vector<int64_t> shape, c10::DeviceType deviceType)
+    : m_tensor(AllocateTensor<T>(shape, deviceType)) {}
 
 template <typename T> int64_t ndarray<T>::GetNdim() const {
     return m_tensor ? m_tensor->dl_tensor.ndim : 0;
@@ -318,8 +318,8 @@ template <typename T> ndarray<T> ndarray<T>::Transpose() const {
     }
 
     const auto &t = m_tensor->dl_tensor;
-    std::vector<int64_t> new_shape = {t.shape[1], t.shape[0]};
-    ndarray<T> result(new_shape, GetDevice());
+    std::vector<int64_t> newShape = {t.shape[1], t.shape[0]};
+    ndarray<T> result(newShape, GetDevice());
 
     if constexpr (std::is_same_v<T, bool>) {
         for (int64_t r = 0; r < t.shape[0]; ++r) {
@@ -393,18 +393,18 @@ template <typename T> DLManagedTensor *ndarray<T>::ToDLPack() const {
     mt->dl_tensor.dtype = src.dtype;
     mt->dl_tensor.byte_offset = src.byte_offset;
 
-    int64_t *shape_ptr = nullptr;
-    int64_t *strides_ptr = nullptr;
+    int64_t *shapePtr = nullptr;
+    int64_t *stridesPtr = nullptr;
 
     if (src.ndim > 0) {
-        shape_ptr = new int64_t[src.ndim];
-        strides_ptr = new int64_t[src.ndim];
-        std::copy_n(src.shape, src.ndim, shape_ptr);
-        std::copy_n(src.strides, src.ndim, strides_ptr);
+        shapePtr = new int64_t[src.ndim];
+        stridesPtr = new int64_t[src.ndim];
+        std::copy_n(src.shape, src.ndim, shapePtr);
+        std::copy_n(src.strides, src.ndim, stridesPtr);
     }
 
-    mt->dl_tensor.shape = shape_ptr;
-    mt->dl_tensor.strides = strides_ptr;
+    mt->dl_tensor.shape = shapePtr;
+    mt->dl_tensor.strides = stridesPtr;
     mt->manager_ctx = new std::shared_ptr<DLManagedTensor>(m_tensor);
     mt->deleter = ViewDeleter;
 
@@ -412,19 +412,19 @@ template <typename T> DLManagedTensor *ndarray<T>::ToDLPack() const {
 }
 
 template <typename T>
-ndarray<T> ndarray<T>::FromDLPack(DLManagedTensor *managed_tensor) {
-    if (!managed_tensor) {
+ndarray<T> ndarray<T>::FromDLPack(DLManagedTensor *managedTensor) {
+    if (!managedTensor) {
         return ndarray<T>();
     }
 
-    const auto &t = managed_tensor->dl_tensor;
+    const auto &t = managedTensor->dl_tensor;
     if (!IsExpectedDType<T>(t)) {
-        ManagedTensorDeleter(managed_tensor);
+        ManagedTensorDeleter(managedTensor);
         throw std::runtime_error("FromDLPack expects matching dtype");
     }
 
     return ndarray<T>(
-        std::shared_ptr<DLManagedTensor>(managed_tensor, ManagedTensorDeleter));
+        std::shared_ptr<DLManagedTensor>(managedTensor, ManagedTensorDeleter));
 }
 
 template <typename T>
@@ -433,18 +433,18 @@ ndarray<T> ndarray<T>::Add(const ndarray<T> &other) const {
         if (!m_tensor || !other.m_tensor) {
             throw std::runtime_error("Cannot Add empty arrays");
         }
-        const auto shape_a = GetShape();
-        const auto shape_b = other.GetShape();
-        if (shape_a.size() != 2 || shape_b.size() != 2) {
+        const auto shapeA = GetShape();
+        const auto shapeB = other.GetShape();
+        if (shapeA.size() != 2 || shapeB.size() != 2) {
             throw std::runtime_error("Add only supported for 2D arrays");
         }
-        if (shape_a[0] != shape_b[0] || shape_a[1] != shape_b[1]) {
+        if (shapeA[0] != shapeB[0] || shapeA[1] != shapeB[1]) {
             throw std::runtime_error("Shape mismatch for Add");
         }
 
-        ndarray<T> out(shape_a, GetDevice());
-        for (int64_t r = 0; r < shape_a[0]; ++r) {
-            for (int64_t c = 0; c < shape_a[1]; ++c) {
+        ndarray<T> out(shapeA, GetDevice());
+        for (int64_t r = 0; r < shapeA[0]; ++r) {
+            for (int64_t c = 0; c < shapeA[1]; ++c) {
                 out.At(r, c) = At(r, c) || other.At(r, c);
             }
         }
@@ -476,18 +476,18 @@ ndarray<T> ndarray<T>::Multiply(const ndarray<T> &other) const {
         if (!m_tensor || !other.m_tensor) {
             throw std::runtime_error("Cannot Multiply empty arrays");
         }
-        const auto shape_a = GetShape();
-        const auto shape_b = other.GetShape();
-        if (shape_a.size() != 2 || shape_b.size() != 2) {
+        const auto shapeA = GetShape();
+        const auto shapeB = other.GetShape();
+        if (shapeA.size() != 2 || shapeB.size() != 2) {
             throw std::runtime_error("Multiply only supported for 2D arrays");
         }
-        if (shape_a[0] != shape_b[0] || shape_a[1] != shape_b[1]) {
+        if (shapeA[0] != shapeB[0] || shapeA[1] != shapeB[1]) {
             throw std::runtime_error("Shape mismatch for Multiply");
         }
 
-        ndarray<T> out(shape_a, GetDevice());
-        for (int64_t r = 0; r < shape_a[0]; ++r) {
-            for (int64_t c = 0; c < shape_a[1]; ++c) {
+        ndarray<T> out(shapeA, GetDevice());
+        for (int64_t r = 0; r < shapeA[0]; ++r) {
+            for (int64_t c = 0; c < shapeA[1]; ++c) {
                 out.At(r, c) = At(r, c) && other.At(r, c);
             }
         }

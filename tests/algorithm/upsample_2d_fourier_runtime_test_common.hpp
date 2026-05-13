@@ -13,7 +13,7 @@
 
 #include "container/ndarray.hpp"
 
-namespace upsample_2d_fourier_test {
+namespace Upsample2DFourierTest {
 
 template <typename T> struct TestConfig;
 
@@ -34,26 +34,26 @@ template <> struct TestConfig<double> {
 template <typename T, typename TUpsample>
 void RunTypedCases(TUpsample &upsample,
                    const std::vector<std::pair<int64_t, int64_t>> &shapes,
-                   int64_t factor, const std::string &error_prefix) {
+                   int64_t factor, const std::string &errorPrefix) {
     for (const auto [h, w] : shapes) {
-        at::Tensor input_tensor =
+        at::Tensor inputTensor =
             at::randn({h, w}, at::TensorOptions().dtype(TestConfig<T>::kDType));
-        DLManagedTensor *input_dl = at::toDLPack(input_tensor);
-        ndarray::ndarray<T> input = ndarray::ndarray<T>::FromDLPack(input_dl);
+        DLManagedTensor *inputDl = at::toDLPack(inputTensor);
+        ndarray::ndarray<T> input = ndarray::ndarray<T>::FromDLPack(inputDl);
 
         ndarray::ndarray<T> output = upsample.Run(input);
         at::Tensor actual = at::fromDLPack(output.ToDLPack());
 
         const int64_t oh = h * factor;
         const int64_t ow = w * factor;
-        const std::string type_name(TestConfig<T>::kTypeName);
+        const std::string typeName(TestConfig<T>::kTypeName);
         if (actual.sizes() != at::IntArrayRef({oh, ow})) {
-            throw std::runtime_error(error_prefix + " " + type_name +
+            throw std::runtime_error(errorPrefix + " " + typeName +
                                      " output has wrong shape");
         }
 
         if (!actual.isfinite().all().item<bool>()) {
-            throw std::runtime_error(error_prefix + " " + type_name +
+            throw std::runtime_error(errorPrefix + " " + typeName +
                                      " output has NaN/Inf");
         }
 
@@ -61,13 +61,13 @@ void RunTypedCases(TUpsample &upsample,
             using at::indexing::Slice;
             at::Tensor sampled = actual.index({Slice(0, c10::nullopt, factor),
                                                Slice(0, c10::nullopt, factor)});
-            if (!at::allclose(sampled, input_tensor, TestConfig<T>::kRtol,
+            if (!at::allclose(sampled, inputTensor, TestConfig<T>::kRtol,
                               TestConfig<T>::kAtol)) {
-                throw std::runtime_error(error_prefix + " " + type_name +
+                throw std::runtime_error(errorPrefix + " " + typeName +
                                          " identity check failed");
             }
         }
     }
 }
 
-} // namespace upsample_2d_fourier_test
+} // namespace Upsample2DFourierTest

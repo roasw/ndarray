@@ -15,9 +15,9 @@ int main() {
         data[i] = static_cast<float>(i);
     }
 
-    DLManagedTensor managed_tensor{};
+    DLManagedTensor managedTensor{};
 
-    DLTensor &tensor = managed_tensor.dl_tensor;
+    DLTensor &tensor = managedTensor.dl_tensor;
     tensor.data = data;
     tensor.device = {kDLCPU, 0};
     tensor.ndim = 2;

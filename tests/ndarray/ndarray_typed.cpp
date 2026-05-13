@@ -323,16 +323,16 @@ template <typename T> void TestRepeatedFromDlpackRoundtripZeroCopy() {
 template <typename T>
 void TestFromDlpackKeepsStorageAliveAfterSourceDestroyed() {
     ndarray::ndarray<T> survivor;
-    T *source_data = nullptr;
+    T *sourceData = nullptr;
 
     {
         ndarray::ndarray<T> source({2, 3});
         source.At(int64_t(0), int64_t(1)) = static_cast<T>(11);
-        source_data = source.GetData();
+        sourceData = source.GetData();
         survivor = ndarray::ndarray<T>::FromDLPack(source.ToDLPack());
     }
 
-    require(survivor.GetData() == source_data,
+    require(survivor.GetData() == sourceData,
             "FromDLPack survivor must keep source storage alive");
     require_near(survivor.At(int64_t(0), int64_t(1)), static_cast<T>(11),
                  "value must remain readable after source destruction");

@@ -83,7 +83,7 @@ template <typename T> class ndarray {
     /**
      * @brief Allocate a new ndarray for shape/device.
      * @param shape Logical tensor shape.
-     * @param device Target device (CPU or CUDA in current implementation).
+     * @param deviceType Target device (CPU or CUDA in current implementation).
      *
      * @details
      * Delegates to `AllocateTensor<T>()` in `src/container/ndarray_typed.cpp`,
@@ -92,7 +92,7 @@ template <typename T> class ndarray {
      * @note Memory layout is column-major by construction.
      */
     ndarray(std::vector<int64_t> shape,
-            c10::DeviceType device = c10::DeviceType::CPU);
+            c10::DeviceType deviceType = c10::DeviceType::CPU);
 
     /**
      * @brief Copy constructor with zero-copy semantics.
@@ -245,7 +245,7 @@ template <typename T> class ndarray {
 
     /**
      * @brief Adopt ownership of a producer-provided DLPack tensor.
-     * @param managed_tensor Pointer transferred to ndarray ownership.
+     * @param managedTensor Pointer transferred to ndarray ownership.
      * @return ndarray sharing the provided storage.
      *
      * @details
@@ -255,7 +255,7 @@ template <typename T> class ndarray {
      *
      * @throws std::runtime_error on dtype mismatch.
      */
-    static ndarray FromDLPack(DLManagedTensor *managed_tensor);
+    static ndarray FromDLPack(DLManagedTensor *managedTensor);
 
     /**
      * @brief Element-wise add for 2D arrays.

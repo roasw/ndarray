@@ -37,44 +37,44 @@ inline bool SupportsUpsampleInputShape(const std::vector<int64_t> &shape) {
 template <typename T>
 ndarray::ndarray<T> RunUpsampleAoti(const ndarray::ndarray<T> &input,
                                     const TypedPackagePaths &paths,
-                                    int64_t upsample_factor) {
-    const std::string &package_path = paths.SelectPath<T>(input.GetDevice());
+                                    int64_t upsampleFactor) {
+    const std::string &packagePath = paths.SelectPath<T>(input.GetDevice());
 
     if (!SupportsUpsampleInputShape(input.GetShape())) {
         throw std::runtime_error(
             "Upsample input must be 2D with positive shape");
     }
 
-    DLManagedTensor *input_dl = input.ToDLPack();
-    if (!input_dl) {
+    DLManagedTensor *inputDl = input.ToDLPack();
+    if (!inputDl) {
         throw std::runtime_error("Upsample input cannot be empty");
     }
 
-    at::Tensor input_tensor = at::fromDLPack(input_dl);
-    if (input_tensor.scalar_type() != UpsampleTraits<T>::kScalarType) {
+    at::Tensor inputTensor = at::fromDLPack(inputDl);
+    if (inputTensor.scalar_type() != UpsampleTraits<T>::kScalarType) {
         throw std::runtime_error(std::string("Upsample input must be ") +
                                  std::string(UpsampleTraits<T>::kDTypeName));
     }
-    if (input_tensor.dim() != 2) {
+    if (inputTensor.dim() != 2) {
         throw std::runtime_error("Upsample input must be a 2D tensor");
     }
 
-    at::Tensor factor_token =
-        at::ones({upsample_factor}, at::TensorOptions().dtype(at::kFloat));
+    at::Tensor factorToken =
+        at::ones({upsampleFactor}, at::TensorOptions().dtype(at::kFloat));
 
-    auto package = torch::inductor::AOTIModelPackageLoader(package_path);
-    std::vector<at::Tensor> outputs = package.run({input_tensor, factor_token});
+    auto package = torch::inductor::AOTIModelPackageLoader(packagePath);
+    std::vector<at::Tensor> outputs = package.run({inputTensor, factorToken});
     if (outputs.size() != 1) {
         throw std::runtime_error(
             "Upsample model must return exactly one output");
     }
 
-    at::Tensor output_tensor = outputs[0];
-    if (output_tensor.scalar_type() != UpsampleTraits<T>::kScalarType) {
-        output_tensor = output_tensor.to(UpsampleTraits<T>::kScalarType);
+    at::Tensor outputTensor = outputs[0];
+    if (outputTensor.scalar_type() != UpsampleTraits<T>::kScalarType) {
+        outputTensor = outputTensor.to(UpsampleTraits<T>::kScalarType);
     }
 
-    return ndarray::ndarray<T>::FromDLPack(at::toDLPack(output_tensor));
+    return ndarray::ndarray<T>::FromDLPack(at::toDLPack(outputTensor));
 }
 
 } // namespace algorithm::detail

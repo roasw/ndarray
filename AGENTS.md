@@ -51,7 +51,9 @@
 ## Style & conventions
 
 - C++: existing formatting patterns, `#pragma once`, methods `UpperCamelCase`.
+- C++ namespaces use `UpperCamelCase`.
 - Private class members use `m_` prefix; struct/public fields use `lowerCamelCase`.
+- C++ local variables and function parameters use `lowerCamelCase` (no `snake_case`).
 - Header include order: STL, blank, third-party, blank, project.
 - Keep public headers declaration-focused and readable.
 - `ndarray` remains templated with explicit instantiation in `.cpp`.
