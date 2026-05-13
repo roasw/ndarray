@@ -242,37 +242,6 @@ template <typename T> void TestDlpackZeroCopyAndMetadata() {
     mt->deleter(mt);
 }
 
-template <typename T> void TestArithmeticAddMultiply() {
-    ndarray::ndarray<T> a({2, 2});
-    ndarray::ndarray<T> b({2, 2});
-    a.At(int64_t(0), int64_t(0)) = static_cast<T>(1);
-    a.At(int64_t(1), int64_t(1)) = static_cast<T>(3);
-    b.At(int64_t(0), int64_t(0)) = static_cast<T>(10);
-    b.At(int64_t(1), int64_t(1)) = static_cast<T>(5);
-
-    ndarray::ndarray<T> c = a + b;
-    require_near(c.At(int64_t(0), int64_t(0)), static_cast<T>(11), "add (0,0)");
-
-    ndarray::ndarray<T> d = a * b;
-    require_near(d.At(int64_t(1), int64_t(1)), static_cast<T>(15),
-                 "multiply (1,1)");
-}
-
-template <> void TestArithmeticAddMultiply<bool>() {
-    ndarray::ndarray<bool> a({2, 2});
-    ndarray::ndarray<bool> b({2, 2});
-    a.At(int64_t(0), int64_t(0)) = true;
-    a.At(int64_t(1), int64_t(1)) = true;
-    b.At(int64_t(0), int64_t(0)) = true;
-    b.At(int64_t(1), int64_t(1)) = false;
-
-    ndarray::ndarray<bool> c = a + b;
-    require(c.At(int64_t(0), int64_t(0)) == true, "add (0,0)");
-
-    ndarray::ndarray<bool> d = a * b;
-    require(d.At(int64_t(1), int64_t(1)) == false, "multiply (1,1)");
-}
-
 template <typename T> void TestFromDlpackRoundtrip() {
     ndarray::ndarray<T> a({2, 3});
     a.At(int64_t(1), int64_t(2)) = static_cast<T>(7);
@@ -382,8 +351,6 @@ template <typename T> void RunTypedSuite(Counters &counters) {
             [] { TestArmaViewSharesData<T>(); });
     RunCase(prefix + "dlpack_zero_copy_and_metadata", counters,
             [] { TestDlpackZeroCopyAndMetadata<T>(); });
-    RunCase(prefix + "arithmetic_add_multiply", counters,
-            [] { TestArithmeticAddMultiply<T>(); });
     RunCase(prefix + "from_dlpack_roundtrip", counters,
             [] { TestFromDlpackRoundtrip<T>(); });
     RunCase(prefix + "torch_from_dlpack_zero_copy", counters,

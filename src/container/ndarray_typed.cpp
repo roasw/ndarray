@@ -10,7 +10,12 @@
 #include <type_traits>
 #include <vector>
 
+#include <ATen/ATen.h>
+#include <ATen/DLConvertor.h>
 #include <ATen/dlpack.h>
+#include <ATen/ops/div.h>
+#include <ATen/ops/logical_and.h>
+#include <ATen/ops/logical_or.h>
 #include <armadillo>
 #include <c10/core/Allocator.h>
 #include <c10/core/DeviceType.h>
@@ -216,9 +221,9 @@ DataType &AtImpl(const DLTensor &tensor, DataType *data, Indices... indices) {
     }
 }
 
-template <typename T, typename Op>
-ndarray<T> ArmaOp(const ndarray<T> &a, const ndarray<T> &b,
-                  std::string_view opName, Op op) {
+template <typename T>
+void ValidateBinaryOpInputs(const ndarray<T> &a, const ndarray<T> &b,
+                            std::string_view opName) {
     if (!a.GetData() || !b.GetData()) {
         throw std::runtime_error(std::string("Cannot ") + std::string(opName) +
                                  " empty arrays");
@@ -233,14 +238,29 @@ ndarray<T> ArmaOp(const ndarray<T> &a, const ndarray<T> &b,
         throw std::runtime_error(std::string("Shape mismatch for ") +
                                  std::string(opName));
     }
+    if (a.GetDevice() != b.GetDevice()) {
+        throw std::runtime_error(std::string("Device mismatch for ") +
+                                 std::string(opName));
+    }
+}
 
-    arma::Mat<T> ma(a.GetData(), shapeA[0], shapeA[1], false, true);
-    arma::Mat<T> mb(b.GetData(), shapeB[0], shapeB[1], false, true);
-    arma::Mat<T> result = op(ma, mb);
+template <typename T, typename Op>
+ndarray<T> TorchBinaryOp(const ndarray<T> &a, const ndarray<T> &b,
+                         std::string_view opName, Op op) {
+    ValidateBinaryOpInputs(a, b, opName);
+
+    at::Tensor lhs = at::fromDLPack(a.ToDLPack());
+    at::Tensor rhs = at::fromDLPack(b.ToDLPack());
+    at::Tensor computed = op(lhs, rhs);
+
+    if (computed.scalar_type() != lhs.scalar_type()) {
+        computed = computed.to(lhs.scalar_type());
+    }
 
     ndarray<T> out(a.GetShape(), a.GetDevice());
-    std::copy_n(result.memptr(), static_cast<int64_t>(result.n_elem),
-                out.GetData());
+    at::Tensor outTensor = at::fromDLPack(out.ToDLPack());
+    outTensor.copy_(computed);
+
     return out;
 }
 
@@ -430,30 +450,14 @@ ndarray<T> ndarray<T>::FromDLPack(DLManagedTensor *managedTensor) {
 template <typename T>
 ndarray<T> ndarray<T>::Add(const ndarray<T> &other) const {
     if constexpr (std::is_same_v<T, bool>) {
-        if (!m_tensor || !other.m_tensor) {
-            throw std::runtime_error("Cannot Add empty arrays");
-        }
-        const auto shapeA = GetShape();
-        const auto shapeB = other.GetShape();
-        if (shapeA.size() != 2 || shapeB.size() != 2) {
-            throw std::runtime_error("Add only supported for 2D arrays");
-        }
-        if (shapeA[0] != shapeB[0] || shapeA[1] != shapeB[1]) {
-            throw std::runtime_error("Shape mismatch for Add");
-        }
-
-        ndarray<T> out(shapeA, GetDevice());
-        for (int64_t r = 0; r < shapeA[0]; ++r) {
-            for (int64_t c = 0; c < shapeA[1]; ++c) {
-                out.At(r, c) = At(r, c) || other.At(r, c);
-            }
-        }
-        return out;
+        return TorchBinaryOp(*this, other, "Add",
+                             [](const at::Tensor &a, const at::Tensor &b) {
+                                 return at::logical_or(a, b);
+                             });
     } else {
-        return ArmaOp(*this, other, "Add",
-                      [](const arma::Mat<T> &a, const arma::Mat<T> &b) {
-                          return arma::Mat<T>(a + b);
-                      });
+        return TorchBinaryOp(
+            *this, other, "Add",
+            [](const at::Tensor &a, const at::Tensor &b) { return a + b; });
     }
 }
 
@@ -463,40 +467,23 @@ ndarray<T> ndarray<T>::Subtract(const ndarray<T> &other) const {
         (void)other;
         throw std::runtime_error("Subtract not supported for bool arrays");
     } else {
-        return ArmaOp(*this, other, "Subtract",
-                      [](const arma::Mat<T> &a, const arma::Mat<T> &b) {
-                          return arma::Mat<T>(a - b);
-                      });
+        return TorchBinaryOp(
+            *this, other, "Subtract",
+            [](const at::Tensor &a, const at::Tensor &b) { return a - b; });
     }
 }
 
 template <typename T>
 ndarray<T> ndarray<T>::Multiply(const ndarray<T> &other) const {
     if constexpr (std::is_same_v<T, bool>) {
-        if (!m_tensor || !other.m_tensor) {
-            throw std::runtime_error("Cannot Multiply empty arrays");
-        }
-        const auto shapeA = GetShape();
-        const auto shapeB = other.GetShape();
-        if (shapeA.size() != 2 || shapeB.size() != 2) {
-            throw std::runtime_error("Multiply only supported for 2D arrays");
-        }
-        if (shapeA[0] != shapeB[0] || shapeA[1] != shapeB[1]) {
-            throw std::runtime_error("Shape mismatch for Multiply");
-        }
-
-        ndarray<T> out(shapeA, GetDevice());
-        for (int64_t r = 0; r < shapeA[0]; ++r) {
-            for (int64_t c = 0; c < shapeA[1]; ++c) {
-                out.At(r, c) = At(r, c) && other.At(r, c);
-            }
-        }
-        return out;
+        return TorchBinaryOp(*this, other, "Multiply",
+                             [](const at::Tensor &a, const at::Tensor &b) {
+                                 return at::logical_and(a, b);
+                             });
     } else {
-        return ArmaOp(*this, other, "Multiply",
-                      [](const arma::Mat<T> &a, const arma::Mat<T> &b) {
-                          return arma::Mat<T>(a % b);
-                      });
+        return TorchBinaryOp(
+            *this, other, "Multiply",
+            [](const at::Tensor &a, const at::Tensor &b) { return a * b; });
     }
 }
 
@@ -505,11 +492,17 @@ ndarray<T> ndarray<T>::Divide(const ndarray<T> &other) const {
     if constexpr (std::is_same_v<T, bool>) {
         (void)other;
         throw std::runtime_error("Divide not supported for bool arrays");
+    } else if constexpr (std::is_integral_v<T>) {
+        return TorchBinaryOp(*this, other, "Divide",
+                             [](const at::Tensor &a, const at::Tensor &b) {
+                                 return at::div(a.to(at::kDouble),
+                                                b.to(at::kDouble));
+                             });
     } else {
-        return ArmaOp(*this, other, "Divide",
-                      [](const arma::Mat<T> &a, const arma::Mat<T> &b) {
-                          return arma::Mat<T>(a / b);
-                      });
+        return TorchBinaryOp(*this, other, "Divide",
+                             [](const at::Tensor &a, const at::Tensor &b) {
+                                 return at::div(a, b);
+                             });
     }
 }
 

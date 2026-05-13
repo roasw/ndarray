@@ -262,7 +262,7 @@ template <typename T> class ndarray {
      *
      * @details
      * Implemented in `src/container/ndarray_typed.cpp`:
-     * - non-bool: Armadillo-backed element-wise add,
+     * - non-bool: torch-backed element-wise add,
      * - bool: explicit logical-OR path.
      */
     ndarray<T> Add(const ndarray<T> &other) const;
@@ -272,7 +272,7 @@ template <typename T> class ndarray {
      *
      * @details
      * Implemented in `src/container/ndarray_typed.cpp`:
-     * - non-bool: Armadillo-backed element-wise subtract,
+     * - non-bool: torch-backed element-wise subtract,
      * - bool: explicitly unsupported and throws.
      */
     ndarray<T> Subtract(const ndarray<T> &other) const;
@@ -282,7 +282,7 @@ template <typename T> class ndarray {
      *
      * @details
      * Implemented in `src/container/ndarray_typed.cpp`:
-     * - non-bool: Armadillo Schur product,
+     * - non-bool: torch-backed element-wise multiply,
      * - bool: explicit logical-AND path.
      */
     ndarray<T> Multiply(const ndarray<T> &other) const;
@@ -292,7 +292,7 @@ template <typename T> class ndarray {
      *
      * @details
      * Implemented in `src/container/ndarray_typed.cpp`:
-     * - non-bool: Armadillo element-wise division,
+     * - non-bool: torch-backed element-wise division,
      * - bool: explicitly unsupported and throws.
      */
     ndarray<T> Divide(const ndarray<T> &other) const;

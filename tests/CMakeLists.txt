@@ -12,6 +12,11 @@ target_link_libraries(ndarray_typed_test PRIVATE ndarray ndarray_project_options
 
 add_test(NAME ndarray_typed COMMAND ndarray_typed_test)
 
+add_executable(ndarray_arithmetic_test ndarray/ndarray_arithmetic.cpp)
+target_link_libraries(ndarray_arithmetic_test PRIVATE ndarray ndarray_project_options)
+
+add_test(NAME ndarray_arithmetic COMMAND ndarray_arithmetic_test)
+
 add_executable(upsample_2d_fourier_runtime_test algorithm/upsample_2d_fourier_runtime.cpp)
 target_link_libraries(
     upsample_2d_fourier_runtime_test
