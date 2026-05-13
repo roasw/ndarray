@@ -15,7 +15,8 @@ ALGORITHM_NAME = Path(__file__).stem
 
 
 class Upsample2DFourierKernel(nn.Module):
-    def forward(self, x: torch.Tensor, factor_token: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    def _validate_inputs(x: torch.Tensor, factor_token: torch.Tensor) -> None:
         if x.ndim != 2:
             raise RuntimeError("Upsample expects a 2D tensor")
         if factor_token.ndim != 1:
@@ -23,7 +24,13 @@ class Upsample2DFourierKernel(nn.Module):
         if factor_token.dtype != x.dtype:
             raise RuntimeError("Upsample factor token dtype must match input dtype")
 
+    @staticmethod
+    def _run_kernel_op(x: torch.Tensor, factor_token: torch.Tensor) -> torch.Tensor:
         return getattr(torch.ops.ndarray, UPSAMPLE_2D_FOURIER)(x, factor_token)
+
+    def forward(self, x: torch.Tensor, factor_token: torch.Tensor) -> torch.Tensor:
+        self._validate_inputs(x, factor_token)
+        return self._run_kernel_op(x, factor_token)
 
     @classmethod
     def export(cls, **config: Any) -> dict[str, Any]:

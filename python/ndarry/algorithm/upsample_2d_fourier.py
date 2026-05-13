@@ -14,7 +14,8 @@ ALGORITHM_NAME = Path(__file__).stem
 
 
 class Upsample2DFourier(nn.Module):
-    def forward(self, x: torch.Tensor, factor_token: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    def _validate_inputs(x: torch.Tensor, factor_token: torch.Tensor) -> None:
         if x.ndim != 2:
             raise RuntimeError("Upsample expects a 2D tensor")
         if factor_token.ndim != 1:
@@ -22,25 +23,40 @@ class Upsample2DFourier(nn.Module):
         if factor_token.dtype != x.dtype:
             raise RuntimeError("Upsample factor token dtype must match input dtype")
 
-        factor = factor_token.shape[0]
-        h, w = x.shape
-        out_h, out_w = h * factor, w * factor
+    @staticmethod
+    def _factor_from_token(factor_token: torch.Tensor) -> int:
+        return factor_token.shape[0]
 
-        spec = torch.fft.fft2(x)
-
-        spec_centered = torch.fft.fftshift(spec)
+    @staticmethod
+    def _pad_spectrum(
+        spec_centered: torch.Tensor, out_h: int, out_w: int
+    ) -> torch.Tensor:
+        h, w = spec_centered.shape
         pad_h = out_h - h
         pad_w = out_w - w
         pad_top = pad_h // 2
         pad_bottom = pad_h - pad_top
         pad_left = pad_w // 2
         pad_right = pad_w - pad_left
+        return F.pad(spec_centered, (pad_left, pad_right, pad_top, pad_bottom))
 
-        spec_padded = F.pad(spec_centered, (pad_left, pad_right, pad_top, pad_bottom))
-        spec_out = torch.fft.ifftshift(spec_padded)
-
+    @staticmethod
+    def _ifft_and_scale(spec_out: torch.Tensor, factor: int) -> torch.Tensor:
         out = torch.fft.ifft2(spec_out)
         return out.real * (factor * factor)
+
+    def forward(self, x: torch.Tensor, factor_token: torch.Tensor) -> torch.Tensor:
+        self._validate_inputs(x, factor_token)
+
+        factor = self._factor_from_token(factor_token)
+        h, w = x.shape
+        out_h, out_w = h * factor, w * factor
+
+        spec = torch.fft.fft2(x)
+        spec_centered = torch.fft.fftshift(spec)
+        spec_padded = self._pad_spectrum(spec_centered, out_h, out_w)
+        spec_out = torch.fft.ifftshift(spec_padded)
+        return self._ifft_and_scale(spec_out, factor)
 
     @classmethod
     def export(cls, **config: Any) -> dict[str, Any]:
