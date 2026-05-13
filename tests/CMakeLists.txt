@@ -136,3 +136,10 @@ add_python_test_case(
     --plots-dir
     ${CMAKE_BINARY_DIR}/plots
 )
+
+add_python_test_case(
+    python_upsample_2d_fourier_runtime_checks
+    tests/python/test_upsample_2d_fourier_runtime_checks.py
+    --package-metadata
+    ${UPSAMPLE_2D_FOURIER_METADATA_PATH}
+)
