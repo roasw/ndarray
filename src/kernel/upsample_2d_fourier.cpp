@@ -18,23 +18,24 @@ namespace {
 
 constexpr const char *kUpsampleOpName = "upsample_2d_fourier";
 
+enum class FactorTokenValidationMode {
+    Strict,
+    Relaxed,
+};
+
 } // namespace
 
-int64_t ValidateFactorToken(const at::Tensor &factorToken) {
+void ValidateFactorToken(const at::Tensor &factorToken,
+                         FactorTokenValidationMode validationMode) {
     if (factorToken.dim() != 1) {
         throw std::runtime_error("upsample_2d_fourier expects 1D factor_token");
     }
 
-    const int64_t factor = factorToken.size(0);
-    if (factor < 1) {
-        throw std::runtime_error("upsample_2d_fourier expects factor >= 1");
-    }
-    return factor;
-}
-
-void ValidateFactorTokenForMeta(const at::Tensor &factorToken) {
-    if (factorToken.dim() != 1) {
-        throw std::runtime_error("upsample_2d_fourier expects 1D factor_token");
+    if (validationMode == FactorTokenValidationMode::Strict) {
+        const int64_t factor = factorToken.size(0);
+        if (factor < 1) {
+            throw std::runtime_error("upsample_2d_fourier expects factor >= 1");
+        }
     }
 }
 
@@ -51,7 +52,8 @@ at::Tensor Upsample2DFourierCpu(const at::Tensor &x,
             "upsample_2d_fourier expects float32/float64 input");
     }
 
-    const int64_t factor = ValidateFactorToken(factorToken);
+    ValidateFactorToken(factorToken, FactorTokenValidationMode::Strict);
+    const int64_t factor = factorToken.size(0);
 
     const int64_t h = x.size(0);
     const int64_t w = x.size(1);
@@ -87,7 +89,7 @@ at::Tensor Upsample2DFourierMeta(const at::Tensor &x,
             "upsample_2d_fourier expects float32/float64 input");
     }
 
-    ValidateFactorTokenForMeta(factorToken);
+    ValidateFactorToken(factorToken, FactorTokenValidationMode::Relaxed);
 
     const c10::SymInt factor = factorToken.sym_size(0);
     const c10::SymInt outH = x.sym_size(0) * factor;
