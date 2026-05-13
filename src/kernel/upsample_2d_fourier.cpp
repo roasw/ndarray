@@ -24,10 +24,6 @@ int64_t ValidateFactorToken(const at::Tensor &factorToken) {
     if (factorToken.dim() != 1) {
         throw std::runtime_error("upsample_2d_fourier expects 1D factor_token");
     }
-    if (factorToken.scalar_type() != at::kFloat) {
-        throw std::runtime_error(
-            "upsample_2d_fourier expects float32 factor_token");
-    }
 
     const int64_t factor = factorToken.size(0);
     if (factor < 1) {
@@ -39,10 +35,6 @@ int64_t ValidateFactorToken(const at::Tensor &factorToken) {
 void ValidateFactorTokenForMeta(const at::Tensor &factorToken) {
     if (factorToken.dim() != 1) {
         throw std::runtime_error("upsample_2d_fourier expects 1D factor_token");
-    }
-    if (factorToken.scalar_type() != at::kFloat) {
-        throw std::runtime_error(
-            "upsample_2d_fourier expects float32 factor_token");
     }
 }
 

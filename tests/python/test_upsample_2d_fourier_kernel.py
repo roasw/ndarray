@@ -42,8 +42,8 @@ class Upsample2DFourierKernelTests(unittest.TestCase):
         cls.eager_f64 = Upsample2DFourier().eval()
 
     @staticmethod
-    def _factor_token(factor: int) -> torch.Tensor:
-        return factor_token(factor)
+    def _factor_token(factor: int, dtype: torch.dtype = torch.float32) -> torch.Tensor:
+        return factor_token(factor, dtype)
 
     def test_multiple_shapes_match_reference(self):
         shapes = [(3, 5), (4, 6), (7, 9), (8, 11), (15, 17)]
@@ -65,8 +65,12 @@ class Upsample2DFourierKernelTests(unittest.TestCase):
     def test_float64_package_matches_reference(self):
         py_input = torch.randn(5, 7, dtype=torch.float64)
         factor = 4
-        py_expected = self.__class__.eager_f64(py_input, self._factor_token(factor))
-        py_output = self.__class__.compiled_f64(py_input, self._factor_token(factor))
+        py_expected = self.__class__.eager_f64(
+            py_input, self._factor_token(factor, torch.float64)
+        )
+        py_output = self.__class__.compiled_f64(
+            py_input, self._factor_token(factor, torch.float64)
+        )
         self.assertTrue(torch.allclose(py_output, py_expected, atol=1e-10, rtol=1e-10))
 
     def test_matches_cpp_ndarray_input(self):

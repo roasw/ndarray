@@ -42,8 +42,8 @@ def load_packages(metadata_path: Path) -> dict[str, str]:
     return package_paths
 
 
-def factor_token(factor: int) -> torch.Tensor:
-    return torch.ones(factor, dtype=torch.float32)
+def factor_token(factor: int, dtype: torch.dtype = torch.float32) -> torch.Tensor:
+    return torch.ones(factor, dtype=dtype)
 
 
 def run_test_case(test_case: type[unittest.TestCase]) -> int:

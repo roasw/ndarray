@@ -8,7 +8,7 @@
 
 ## 目标结构
 
-- 内核实现：`src/kernel/upsample_2d_fourier_cpu.cpp`
+- 内核实现：`src/kernel/upsample_2d_fourier.cpp`
 - Python 算法封装：`python/ndarry/algorithm/upsample_2d_fourier_kernel.py`
 - AOT 编译工具：`tools/aoti-compile.py`
 - CMake 接线：`CMakeLists.txt` + `cmake/AOTICompile.cmake`

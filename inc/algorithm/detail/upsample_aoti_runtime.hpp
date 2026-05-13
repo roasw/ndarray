@@ -60,7 +60,8 @@ ndarray::ndarray<T> RunUpsampleAoti(const ndarray::ndarray<T> &input,
     }
 
     at::Tensor factorToken =
-        at::ones({upsampleFactor}, at::TensorOptions().dtype(at::kFloat));
+        at::ones({upsampleFactor},
+                 at::TensorOptions().dtype(UpsampleTraits<T>::kScalarType));
 
     auto package = torch::inductor::AOTIModelPackageLoader(packagePath);
     std::vector<at::Tensor> outputs = package.run({inputTensor, factorToken});

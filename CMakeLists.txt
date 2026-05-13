@@ -66,7 +66,7 @@ target_link_libraries(
 set(NDARRAY_TORCH_KERNEL_DSO_TARGET ndarray_torch_kernels)
 add_torch_kernel_library(
     ${NDARRAY_TORCH_KERNEL_DSO_TARGET}
-    src/kernel/upsample_2d_fourier_cpu.cpp
+    src/kernel/upsample_2d_fourier.cpp
 )
 target_link_libraries(
     ${NDARRAY_TORCH_KERNEL_DSO_TARGET}

@@ -34,7 +34,7 @@ class KernelUpsample2DFourierTests(unittest.TestCase):
 
     def _assert_match(self, shape: tuple[int, int], factor: int, dtype: torch.dtype):
         py_input = torch.randn(*shape, dtype=dtype)
-        py_factor_token = torch.ones(factor, dtype=torch.float32)
+        py_factor_token = torch.ones(factor, dtype=dtype)
 
         eager = (
             self.__class__.eager_f32
