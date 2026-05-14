@@ -1,57 +1,18 @@
-#include <cmath>
 #include <complex>
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 
 #include "container/ndarray.hpp"
+#include "test_common.hpp"
 
 namespace {
 
-template <typename T> struct TypeName;
-template <> struct TypeName<float> {
-    static constexpr std::string_view value = "float";
-};
-template <> struct TypeName<double> {
-    static constexpr std::string_view value = "double";
-};
-template <> struct TypeName<int32_t> {
-    static constexpr std::string_view value = "int32";
-};
-template <> struct TypeName<int64_t> {
-    static constexpr std::string_view value = "int64";
-};
-template <> struct TypeName<std::complex<float>> {
-    static constexpr std::string_view value = "complex32";
-};
-template <> struct TypeName<std::complex<double>> {
-    static constexpr std::string_view value = "complex64";
-};
-template <> struct TypeName<bool> {
-    static constexpr std::string_view value = "bool";
-};
-
-template <typename T> constexpr double Epsilon();
-template <> constexpr double Epsilon<float>() { return 1e-5; }
-template <> constexpr double Epsilon<double>() { return 1e-10; }
-template <> constexpr double Epsilon<int32_t>() { return 0.0; }
-template <> constexpr double Epsilon<int64_t>() { return 0.0; }
-template <> constexpr double Epsilon<std::complex<float>>() { return 1e-5; }
-template <> constexpr double Epsilon<std::complex<double>>() { return 1e-10; }
-template <typename T> double DiffMagnitude(T a, T b) {
-    if constexpr (std::is_same_v<T, std::complex<float>> ||
-                  std::is_same_v<T, std::complex<double>>) {
-        return std::abs(a - b);
-    } else {
-        return std::fabs(static_cast<double>(a) - static_cast<double>(b));
-    }
-}
-
 template <typename T>
-void RequireNear(T a, T b, const std::string &msg, double eps = Epsilon<T>()) {
-    if (DiffMagnitude(a, b) > eps) {
+void RequireNear(T a, T b, const std::string &msg,
+                 double eps = NdarrayTestCommon::Epsilon<T>()) {
+    if (NdarrayTestCommon::DiffMagnitude(a, b) > eps) {
         throw std::runtime_error(msg);
     }
 }
@@ -59,26 +20,6 @@ void RequireNear(T a, T b, const std::string &msg, double eps = Epsilon<T>()) {
 inline void Require(bool cond, const std::string &msg) {
     if (!cond) {
         throw std::runtime_error(msg);
-    }
-}
-
-struct Counters {
-    int passed = 0;
-    int failed = 0;
-};
-
-template <typename Fn>
-void RunCase(const std::string &name, Counters &counters, Fn fn) {
-    try {
-        fn();
-        std::cout << "  PASS  " << name << "\n";
-        ++counters.passed;
-    } catch (const std::exception &e) {
-        std::cout << "  FAIL  " << name << " - " << e.what() << "\n";
-        ++counters.failed;
-    } catch (...) {
-        std::cout << "  FAIL  " << name << " - unknown exception\n";
-        ++counters.failed;
     }
 }
 
@@ -244,15 +185,17 @@ template <typename T> void TestShapeMismatchRejected() {
     Require(threw, "shape mismatch should throw");
 }
 
-template <typename T> void RunTypedSuite(Counters &counters) {
+template <typename T>
+void RunTypedSuite(NdarrayTestCommon::Counters &counters) {
     const std::string prefix =
-        std::string("[") + std::string(TypeName<T>::value) + "] ";
-    RunCase(prefix + "arithmetic_values", counters,
-            [] { TestArithmeticValues<T>(); });
-    RunCase(prefix + "result_storage_independent", counters,
-            [] { TestResultStorageIndependent<T>(); });
-    RunCase(prefix + "shape_mismatch_rejected", counters,
-            [] { TestShapeMismatchRejected<T>(); });
+        std::string("[") + std::string(NdarrayTestCommon::TypeName<T>::value) +
+        "] ";
+    NdarrayTestCommon::RunCase(prefix + "arithmetic_values", counters,
+                               [] { TestArithmeticValues<T>(); });
+    NdarrayTestCommon::RunCase(prefix + "result_storage_independent", counters,
+                               [] { TestResultStorageIndependent<T>(); });
+    NdarrayTestCommon::RunCase(prefix + "shape_mismatch_rejected", counters,
+                               [] { TestShapeMismatchRejected<T>(); });
 }
 
 } // namespace
@@ -260,7 +203,7 @@ template <typename T> void RunTypedSuite(Counters &counters) {
 int main() {
     std::cout << "=== ndarray arithmetic tests ===\n";
 
-    Counters counters;
+    NdarrayTestCommon::Counters counters;
     RunTypedSuite<float>(counters);
     RunTypedSuite<double>(counters);
     RunTypedSuite<int32_t>(counters);
