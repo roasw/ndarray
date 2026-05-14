@@ -88,7 +88,7 @@ class Upsample2DFourierKnownOutputTests(unittest.TestCase):
     def _assert_case_and_plot(
         self, x: torch.Tensor, factor: int, plot_name: str, title_prefix: str
     ):
-        token = factor_token(factor, dtype=torch.float32)
+        token = factor_token(factor)
 
         expected = reference_upsample_2d_fourier(x, factor)
         out_standard = self.__class__.standard_f32(x, token)

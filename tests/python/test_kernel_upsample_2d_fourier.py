@@ -34,7 +34,7 @@ class KernelUpsample2DFourierTests(unittest.TestCase):
 
     def _assert_match(self, shape: tuple[int, int], factor: int, dtype: torch.dtype):
         py_input = torch.randn(*shape, dtype=dtype)
-        py_factor_token = torch.ones(factor, dtype=dtype)
+        py_factor_token = torch.ones(factor, dtype=torch.int64)
 
         eager = (
             self.__class__.eager_f32
@@ -71,13 +71,13 @@ class KernelUpsample2DFourierTests(unittest.TestCase):
         bad_input = torch.randn(1, 4, 6, dtype=torch.float32)
         op = self._kernel_op()
         with self.assertRaises(RuntimeError):
-            _ = op(bad_input, torch.ones(2, dtype=torch.float32))
+            _ = op(bad_input, torch.ones(2, dtype=torch.int64))
 
     def test_invalid_factor_rejected(self):
         py_input = torch.randn(4, 6, dtype=torch.float32)
         op = self._kernel_op()
         with self.assertRaises(RuntimeError):
-            _ = op(py_input, torch.ones(0, dtype=torch.float32))
+            _ = op(py_input, torch.ones(0, dtype=torch.int64))
 
 
 def main() -> int:

@@ -45,7 +45,7 @@ class Upsample2DFourierRuntimeChecksTests(unittest.TestCase):
                     "    entries[key] = value\n"
                     "fn = torch._inductor.aoti_load_package(entries['cpu_f32'])\n"
                     "x = torch.randn(1, 3, dtype=torch.float32)\n"
-                    "factor_token = torch.ones(2, dtype=torch.float32)\n"
+                    "factor_token = torch.ones(2, dtype=torch.int64)\n"
                     "y = fn(x, factor_token)\n"
                     "print(tuple(y.shape))\n"
                 ),
