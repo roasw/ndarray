@@ -33,20 +33,17 @@ def reference_upsample_2d_fourier(x: torch.Tensor, factor: int) -> torch.Tensor:
     out_h, out_w = h * factor, w * factor
 
     spec = torch.fft.fft2(x)
-    spec_centered = torch.fft.fftshift(spec)
+    spec_padded = torch.zeros(out_h, out_w, dtype=spec.dtype, device=spec.device)
 
-    pad_h = out_h - h
-    pad_w = out_w - w
-    pad_top = pad_h // 2
-    pad_bottom = pad_h - pad_top
-    pad_left = pad_w // 2
-    pad_right = pad_w - pad_left
+    h_pos = (h + 1) // 2
+    w_pos = (w + 1) // 2
 
-    spec_padded = torch.nn.functional.pad(
-        spec_centered, (pad_left, pad_right, pad_top, pad_bottom)
-    )
-    spec_out = torch.fft.ifftshift(spec_padded)
-    out = torch.fft.ifft2(spec_out)
+    spec_padded[:h_pos, :w_pos] = spec[:h_pos, :w_pos]
+    spec_padded[out_h - h + h_pos :, :w_pos] = spec[h_pos:, :w_pos]
+    spec_padded[:h_pos, out_w - w + w_pos :] = spec[:h_pos, w_pos:]
+    spec_padded[out_h - h + h_pos :, out_w - w + w_pos :] = spec[h_pos:, w_pos:]
+
+    out = torch.fft.ifft2(spec_padded)
     return out.real * (factor * factor)
 
 
@@ -142,6 +139,19 @@ class Upsample2DFourierKnownOutputTests(unittest.TestCase):
         )
         self._assert_case_and_plot(
             even_x, factor, "upsample_known_case_2x2_f32.png", "Even 2x2"
+        )
+
+        even_4x4_x = torch.tensor(
+            [
+                [1.0, 2.0, 3.0, 4.0],
+                [5.0, 6.0, 7.0, 8.0],
+                [9.0, 10.0, 11.0, 12.0],
+                [13.0, 14.0, 15.0, 16.0],
+            ],
+            dtype=torch.float32,
+        )
+        self._assert_case_and_plot(
+            even_4x4_x, factor, "upsample_known_case_4x4_f32.png", "Even 4x4"
         )
 
 

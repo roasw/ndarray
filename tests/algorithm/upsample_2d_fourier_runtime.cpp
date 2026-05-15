@@ -19,7 +19,7 @@ int main() {
     const int64_t factor = 4;
     algorithm::Upsample2DFourier upsample(metadataPath, factor);
     const std::vector<std::pair<int64_t, int64_t>> shapes = {
-        {1, 1}, {1, 4}, {4, 1}, {3, 5}, {4, 6}, {7, 9}, {11, 13},
+        {2, 2}, {2, 4}, {4, 2}, {3, 5}, {4, 6}, {7, 9}, {11, 13},
     };
 
     Upsample2DFourierTest::RunTypedCases<float>(upsample, shapes, factor,

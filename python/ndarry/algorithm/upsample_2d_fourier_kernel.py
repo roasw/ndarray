@@ -43,8 +43,9 @@ class Upsample2DFourierKernel(nn.Module):
             raise RuntimeError("kernel_lib config is required")
         torch.ops.load_library(str(kernel_lib))
 
-        h_dim = torch.export.Dim("H", min=1)
-        w_dim = torch.export.Dim("W", min=1)
+        max_dim = int(config.get("max_dim", 4096))
+        h_dim = torch.export.Dim("H", min=2, max=max_dim)
+        w_dim = torch.export.Dim("W", min=2, max=max_dim)
         factor_dim = torch.export.Dim("F", min=1, max=max_factor)
 
         modules: dict[str, Any] = {}

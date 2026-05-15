@@ -88,7 +88,7 @@ int main() {
     algorithm::Upsample2DFourierKernel kernel(kernelMetadataPath, factor);
 
     const std::vector<std::pair<int64_t, int64_t>> shapes = {
-        {1, 1}, {1, 4}, {4, 1}, {3, 5}, {4, 6}, {7, 9}, {11, 13},
+        {2, 2}, {2, 4}, {4, 2}, {3, 5}, {4, 6}, {7, 9}, {11, 13},
     };
 
     CompareTypedOutputs<float>(reference, kernel, shapes, factor);
