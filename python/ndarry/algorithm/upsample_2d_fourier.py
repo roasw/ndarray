@@ -44,6 +44,10 @@ class Upsample2DFourier(nn.Module):
         h_pos = (h + 1) // 2
         w_pos = (w + 1) // 2
 
+        if torch.compiler.is_compiling():
+            torch._check(h > h_pos)
+            torch._check(w > w_pos)
+
         padded[:h_pos, :w_pos, :] = spec_real[:h_pos, :w_pos, :]
         padded[out_h - h + h_pos :, :w_pos, :] = spec_real[h_pos:, :w_pos, :]
         padded[:h_pos, out_w - w + w_pos :, :] = spec_real[:h_pos, w_pos:, :]
@@ -80,23 +84,9 @@ class Upsample2DFourier(nn.Module):
         w_dim = torch.export.Dim("W", min=2, max=max_dim)
         factor_dim = torch.export.Dim("F", min=1, max=max_factor)
 
-        class ConstrainedModel(nn.Module):
-            def __init__(self, base_model):
-                super().__init__()
-                self.base_model = base_model
-
-            def forward(self, x, factor_token):
-                h, w = x.shape
-                torch._check(h >= 2)
-                torch._check(w >= 2)
-                torch._check(h > (h + 1) // 2)
-                torch._check(w > (w + 1) // 2)
-                return self.base_model(x, factor_token)
-
         modules: dict[str, Any] = {}
         for suffix, dtype in (("f32", torch.float32), ("f64", torch.float64)):
-            base_model = cls().eval()
-            model = ConstrainedModel(base_model)
+            model = cls().eval()
             example_input = torch.randn(7, 9, dtype=dtype)
             example_factor_token = torch.ones(2, dtype=torch.int64)
             exported = torch.export.export(
