@@ -47,14 +47,14 @@ def parse_args() -> argparse.Namespace:
                 --algorithm-module python.ndarry.algorithm.upsample_2d_fourier \
                 --output-dir build/Debug/artifacts \
                 --metadata-path build/Debug/artifacts/upsample_2d_fourier.txt \
-                --mode debug \
+                --mode Debug \
                 --config max_factor=8
 
               aoti-compile.py \
                 --algorithm-module python.ndarry.algorithm.upsample_2d_fourier_kernel \
                 --output-dir build/Debug/artifacts \
                 --metadata-path build/Debug/artifacts/upsample_2d_fourier_kernel.txt \
-                --mode release \
+                --mode Release \
                 --config max_factor=8 \
                 --config kernel_lib=/path/to/libndarray_torch_kernels.so
             """
@@ -99,9 +99,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        default="debug",
-        metavar="{debug,release}",
-        help="Packaging mode: debug or release (default: debug)",
+        default="Debug",
+        metavar="{Debug,Release}",
+        help="Packaging mode: Debug or Release (default: Debug)",
     )
     return parser.parse_args()
 
@@ -245,10 +245,10 @@ def canonical_variant_name(model_name: str, algorithm_name: str) -> str:
 
 
 def normalize_mode(mode: str) -> str:
-    """Normalize and validate packaging mode."""
+    """Normalize and validate packaging mode (accepts Debug/debug/DEBUG etc.)."""
     normalized = mode.strip().lower()
     if normalized not in {"debug", "release"}:
-        raise RuntimeError("--mode must be either 'debug' or 'release'")
+        raise RuntimeError("--mode must be 'Debug' or 'Release'")
     return normalized
 
 
@@ -355,8 +355,15 @@ def compile_and_collect_packages(
             dump_exported_graph(model_name, exported_module, output_dir)
 
         package_path = output_dir / f"{model_name}.pt2"
+
+        inductor_configs: dict[str, Any] = {}
+        if mode == "release":
+            inductor_configs["debug"] = False
+
         torch._inductor.aoti_compile_and_package(
-            exported_module, package_path=str(package_path)
+            exported_module,
+            package_path=str(package_path),
+            inductor_configs=inductor_configs if inductor_configs else None,
         )
 
         if mode == "release":
