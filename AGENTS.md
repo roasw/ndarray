@@ -2,9 +2,9 @@
 
 ## Scope
 
-- `ndarray`: C++ column-major DLPack container with Python interop.
+- `ndarray`: C++ column-major DLPack container with Python interop and zero-copy.
 - Upsampling pipeline: Python export -> AOTI `.pt2` -> C++ runtime.
-- New work: C++ torch CPU kernels under `src/kernel`, registered to torch and usable by AOT export/compile.
+- C++ torch CPU kernels: under `src/kernel`, registered to torch and usable by AOT export/compile.
 
 ## Mandatory workflow
 
@@ -21,10 +21,19 @@
 - Sources: `src/container`, `src/algorithm`, `src/kernel`.
 - Python: package `python/ndarry`.
 - Tests: `tests/demo`, `tests/ndarray`, `tests/algorithm`, `tests/python`.
+- Benchmarks: `benchmark/`.
+
+## Benchmarks
+
+- Benchmarks are excluded from the default CTest run.
+- Enabled automatically via `Release` preset; opt-in for `Debug` with
+  `-DNDARRAY_BUILD_BENCHMARKS=ON`.
+- Run: `ctest --test-dir build/Release -L benchmark`.
+- Results are documented in `doc/benchmark-upsample-fourier.md`.
 
 ## Documentation
 
-- Doxygen docs are generated from `inc/container/ndarray.hpp`.
+- Doxygen docs are generated from public headers and sources listed in `Doxyfile.in`.
 - Build docs target (excluded from default `all`):
   - `cmake --build build/Debug --target doc`
 - Generated HTML entrypoint:
