@@ -6,12 +6,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-#################
-# Build options #
-#################
-
-option(NDARRAY_BUILD_BENCHMARKS "Build benchmark tests" OFF)
-
 ################
 # Dependencies #
 ################
@@ -126,10 +120,7 @@ set(PYTHON_TEST_ENV
 )
 
 add_subdirectory(tests)
-
-if(NDARRAY_BUILD_BENCHMARKS)
-    add_subdirectory(benchmark)
-endif()
+add_subdirectory(benchmark)
 
 ########################
 # Documentation target #

@@ -14,8 +14,7 @@
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/Release",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "NDARRAY_BUILD_BENCHMARKS": "ON"
+                "CMAKE_BUILD_TYPE": "Release"
             }
         }
     ]

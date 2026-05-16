@@ -11,7 +11,7 @@
 - Always ask for confirmation before applying code changes.
 - Build/test after edits:
   - `cmake --build build/Debug`
-  - `ctest --test-dir build/Debug --output-on-failure`
+  - `ctest --test-dir build/Debug --output-on-failure -LE benchmark`
 - Run linters before commit: `pre-commit run --all`.
 - Keep zero-copy behavior as a hard requirement for ndarray/torch DLPack interop.
 
@@ -25,23 +25,16 @@
 
 ## Benchmarks
 
-- Benchmarks are excluded from the default CTest run.
-- Enabled automatically via `Release` preset; opt-in for `Debug` with
-  `-DNDARRAY_BUILD_BENCHMARKS=ON`.
-- Run: `ctest --test-dir build/Release -L benchmark`.
+- Benchmarks and profiling tests are registered in CTest but excluded by default
+  via labels. Use `-LE benchmark` for normal test runs.
+- Run benchmarks: `ctest --test-dir build/Release -L benchmark`.
 - Results are documented in `doc/benchmark-upsample-fourier.md`.
 
 ### Profiling
 
-- Run with `--profile PATH` to generate a Chrome trace of all 4 paths on 512×512×2:
-  ```bash
-  PYTHONPATH=build/Release/python:python:tests/python:$PYTHONPATH \
-    python benchmark/benchmark_upsample_fourier.py \
-    --package-metadata build/Release/artifacts/upsample_2d_fourier.txt \
-    --kernel-package-metadata build/Release/artifacts/upsample_2d_fourier_kernel.txt \
-    --kernel-lib build/Release/libndarray_torch_kernels.dylib \
-    --profile /tmp/upsample_trace.json
-  ```
+- Profiling is a CTest with label `profile`, off by default.
+- The trace is written to `build/<Preset>/profile_upsample_2d_fourier.json`.
+- Run: `ctest --test-dir build/Release -L profile`.
 - View the trace: open `chrome://tracing` and load the JSON, or use `speedscope`.
 - Quick CLI analysis with `jq`:
   ```bash
@@ -49,7 +42,7 @@
   jq '[.traceEvents[] | select(.ph=="X" and .dur) | {name:(.cat+"::"+.name), dur_us:.dur}] |
     group_by(.name) | map({name:.[0].name, total_ms:([.[].dur_us]|add/1000), calls:length}) |
     sort_by(-.total_ms) | .[0:15][] | "\(.total_ms|tostring|.[0:8])\t\(.calls)x\t\(.name)"' \
-    /tmp/upsample_trace.json
+    build/Release/profile_upsample_2d_fourier.json
   ```
 
 ## Documentation
