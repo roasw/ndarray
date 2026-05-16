@@ -9,9 +9,14 @@
 ## Mandatory workflow
 
 - Always ask for confirmation before applying code changes.
-- Build/test after edits:
+- Build/test after edits (excludes benchmarks):
+  - `cmake --preset Debug`
   - `cmake --build build/Debug`
   - `ctest --test-dir build/Debug --output-on-failure -LE benchmark`
+- Release build (optimized C++ kernels):
+  - `cmake --preset Release`
+  - `cmake --build build/Release`
+  - `ctest --test-dir build/Release --output-on-failure -LE benchmark`
 - Run linters before commit: `pre-commit run --all`.
 - Keep zero-copy behavior as a hard requirement for ndarray/torch DLPack interop.
 
