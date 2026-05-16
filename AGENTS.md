@@ -31,6 +31,27 @@
 - Run: `ctest --test-dir build/Release -L benchmark`.
 - Results are documented in `doc/benchmark-upsample-fourier.md`.
 
+### Profiling
+
+- Run with `--profile PATH` to generate a Chrome trace of all 4 paths on 512×512×2:
+  ```bash
+  PYTHONPATH=build/Release/python:python:tests/python:$PYTHONPATH \
+    python benchmark/benchmark_upsample_fourier.py \
+    --package-metadata build/Release/artifacts/upsample_2d_fourier.txt \
+    --kernel-package-metadata build/Release/artifacts/upsample_2d_fourier_kernel.txt \
+    --kernel-lib build/Release/libndarray_torch_kernels.dylib \
+    --profile /tmp/upsample_trace.json
+  ```
+- View the trace: open `chrome://tracing` and load the JSON, or use `speedscope`.
+- Quick CLI analysis with `jq`:
+  ```bash
+  # Top ops by total time
+  jq '[.traceEvents[] | select(.ph=="X" and .dur) | {name:(.cat+"::"+.name), dur_us:.dur}] |
+    group_by(.name) | map({name:.[0].name, total_ms:([.[].dur_us]|add/1000), calls:length}) |
+    sort_by(-.total_ms) | .[0:15][] | "\(.total_ms|tostring|.[0:8])\t\(.calls)x\t\(.name)"' \
+    /tmp/upsample_trace.json
+  ```
+
 ## Documentation
 
 - Doxygen docs are generated from public headers and sources listed in `Doxyfile.in`.

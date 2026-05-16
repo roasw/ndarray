@@ -74,6 +74,42 @@ def print_table(
         print("| " + " | ".join(cells) + " |")
 
 
+def run_profile(
+    eager,
+    aoti_runner,
+    kernel_op,
+    kernel_aoti_runner,
+    output_path: Path,
+):
+    h, w, factor = 512, 512, 2
+    x = torch.randn(h, w, dtype=torch.float32)
+    token = factor_token(factor)
+
+    paths = [
+        ("eager", eager),
+        ("aoti", aoti_runner),
+        ("kernel", kernel_op),
+        ("kernel-aoti", kernel_aoti_runner),
+    ]
+
+    with torch.profiler.profile(
+        activities=[
+            torch.profiler.ProfilerActivity.CPU,
+        ],
+        record_shapes=True,
+        with_stack=True,
+    ) as prof:
+        for name, fn in paths:
+            with torch.profiler.record_function(name):
+                for _ in range(3):
+                    fn(x, token)
+
+    prof.export_chrome_trace(str(output_path))
+    print(f"Chrome trace saved to {output_path}")
+    print("Open chrome://tracing in Chrome and load the file.")
+    print("Alternatively: speedscope <file> or upload to https://speedscope.app")
+
+
 def run_benchmarks(
     reference_metadata_path: Path,
     kernel_metadata_path: Path,
@@ -115,7 +151,26 @@ def main() -> int:
     parser.add_argument("--package-metadata", type=Path, required=True)
     parser.add_argument("--kernel-package-metadata", type=Path, required=True)
     parser.add_argument("--kernel-lib", type=Path, required=True)
+    parser.add_argument(
+        "--profile",
+        type=Path,
+        default=None,
+        help="If set, profile a single 512x512x2 config and write Chrome trace",
+    )
     args = parser.parse_args()
+
+    if args.profile is not None:
+        torch.ops.load_library(str(args.kernel_lib))
+        ref_packages = load_packages(args.package_metadata)
+        kernel_packages = load_packages(args.kernel_package_metadata)
+        run_profile(
+            Upsample2DFourier().eval(),
+            torch._inductor.aoti_load_package(ref_packages["cpu_f32"]),
+            getattr(torch.ops.ndarray, UPSAMPLE_2D_FOURIER),
+            torch._inductor.aoti_load_package(kernel_packages["cpu_f32"]),
+            args.profile,
+        )
+        return 0
 
     run_benchmarks(
         args.package_metadata,
