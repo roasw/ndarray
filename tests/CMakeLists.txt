@@ -28,7 +28,7 @@ add_cpp_test_case(
     SOURCE algorithm/upsample_2d_fourier_runtime.cpp
     TEST_NAME upsample_2d_fourier_runtime
     LINK_LIBRARIES
-        upsample_2d_fourier_algorithm
+        ndarray_algorithms
         ${TORCH_LIBRARIES}
     COMPILE_DEFINITIONS
         UPSAMPLE_2D_FOURIER_METADATA_PATH="${UPSAMPLE_2D_FOURIER_METADATA_PATH}"
@@ -41,8 +41,7 @@ add_cpp_test_case(
     SOURCE algorithm/upsample_2d_fourier_parity_runtime.cpp
     TEST_NAME upsample_2d_fourier_parity_runtime
     LINK_LIBRARIES
-        upsample_2d_fourier_algorithm
-        upsample_2d_fourier_kernel_algorithm
+        ndarray_algorithms
         ${NDARRAY_TORCH_KERNEL_DSO_TARGET}
         ${TORCH_LIBRARIES}
     COMPILE_DEFINITIONS
@@ -58,7 +57,7 @@ add_cpp_test_case(
     SOURCE algorithm/upsample_2d_fourier_kernel_runtime.cpp
     TEST_NAME upsample_2d_fourier_kernel_runtime
     LINK_LIBRARIES
-        upsample_2d_fourier_kernel_algorithm
+        ndarray_algorithms
         ${NDARRAY_TORCH_KERNEL_DSO_TARGET}
         ${TORCH_LIBRARIES}
     COMPILE_DEFINITIONS

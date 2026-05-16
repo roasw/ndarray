@@ -1,5 +1,5 @@
-function(add_algorithm_library target source)
-    add_library(${target} SHARED ${source})
+function(add_algorithm_library target)
+    add_library(${target} SHARED ${ARGN})
     target_include_directories(
         ${target}
         PUBLIC

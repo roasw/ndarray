@@ -26,7 +26,7 @@
 
 - Doxygen docs are generated from `inc/container/ndarray.hpp`.
 - Build docs target (excluded from default `all`):
-  - `cmake --build build/Debug --target doxygen`
+  - `cmake --build build/Debug --target doc`
 - Generated HTML entrypoint:
   - `build/Debug/docs/doxygen/html/index.html`
 

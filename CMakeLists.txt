@@ -12,7 +12,7 @@ find_package(Armadillo REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(Doxygen QUIET)
 
-include(cmake/AOTICompile.cmake)
+include(cmake/AddAOTICompileTarget.cmake)
 include(cmake/AddAlgorithmLibrary.cmake)
 include(cmake/AddTorchKernelLibrary.cmake)
 include(cmake/AddCppTestCase.cmake)
@@ -50,16 +50,12 @@ target_link_libraries(ndarray PUBLIC ${TORCH_LIBRARIES} ${ARMADILLO_LIBRARIES})
 target_link_libraries(ndarray PRIVATE ndarray_project_options)
 
 add_algorithm_library(
-    upsample_2d_fourier_algorithm
+    ndarray_algorithms
     src/algorithm/upsample_2d_fourier.cpp
-)
-target_link_libraries(upsample_2d_fourier_algorithm PRIVATE ndarray_project_options)
-add_algorithm_library(
-    upsample_2d_fourier_kernel_algorithm
     src/algorithm/upsample_2d_fourier_kernel.cpp
 )
 target_link_libraries(
-    upsample_2d_fourier_kernel_algorithm
+    ndarray_algorithms
     PRIVATE
         ndarray_project_options
 )
@@ -127,7 +123,7 @@ if(DOXYGEN_FOUND)
     configure_file(${NDARRAY_DOXYFILE_IN} ${NDARRAY_DOXYFILE} @ONLY)
 
     add_custom_target(
-        doxygen
+        doc
         COMMAND ${CMAKE_COMMAND} -E make_directory ${NDARRAY_DOXYGEN_OUTPUT_DIR}
         COMMAND ${DOXYGEN_EXECUTABLE} ${NDARRAY_DOXYFILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -135,5 +131,5 @@ if(DOXYGEN_FOUND)
         VERBATIM
     )
 else()
-    message(STATUS "Doxygen not found; 'doxygen' target is unavailable")
+    message(STATUS "Doxygen not found; 'doc' target is unavailable")
 endif()
