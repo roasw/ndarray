@@ -120,7 +120,7 @@ void AOTInductorModel::run_impl(
 
 ## CMake 接线
 
-- helper：`cmake/AOTICompile.cmake` 的 `add_aoti_compile_target(...)`
+- helper：`cmake/AddAOTICompileTarget.cmake` 的 `add_aoti_compile_target(...)`
 - 调用点：`CMakeLists.txt`
 - 推荐传 `ALGORITHM_FILE`（相对路径）；`ALGORITHM_MODULE` 可由文件路径自动推导。
 - `OUTPUT_DIR` 可省略，默认 `${CMAKE_BINARY_DIR}/artifacts`。

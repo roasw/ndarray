@@ -1,5 +1,4 @@
 PROJECT_NAME           = "ndarray"
-PROJECT_NUMBER         = "@PROJECT_VERSION@"
 OUTPUT_DIRECTORY       = "@CMAKE_CURRENT_BINARY_DIR@/docs/doxygen"
 CREATE_SUBDIRS         = NO
 OUTPUT_LANGUAGE        = English
@@ -27,6 +26,10 @@ WARN_NO_PARAMDOC       = YES
 
 INPUT                  = "@CMAKE_SOURCE_DIR@/inc/container/ndarray.hpp" \
                          "@CMAKE_SOURCE_DIR@/src/container/ndarray_typed.cpp" \
+                         "@CMAKE_SOURCE_DIR@/inc/algorithm/upsample_2d_fourier.hpp" \
+                         "@CMAKE_SOURCE_DIR@/inc/algorithm/upsample_2d_fourier_kernel.hpp" \
+                         "@CMAKE_SOURCE_DIR@/inc/algorithm/detail/upsample_aoti_runtime.hpp" \
+                         "@CMAKE_SOURCE_DIR@/inc/algorithm/detail/aoti_metadata_resolver.hpp" \
                          "@CMAKE_SOURCE_DIR@/tests/ndarray/ndarray_typed.cpp" \
                          "@CMAKE_SOURCE_DIR@/tests/ndarray/ndarray_arithmetic.cpp" \
                          "@CMAKE_SOURCE_DIR@/doc/algo-export-aot-compile.md" \

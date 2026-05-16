@@ -11,7 +11,7 @@
 - 内核实现：`src/kernel/upsample_2d_fourier.cpp`
 - Python 算法封装：`python/ndarry/algorithm/upsample_2d_fourier_kernel.py`
 - AOT 编译工具：`tools/aoti-compile.py`
-- CMake 接线：`CMakeLists.txt` + `cmake/AOTICompile.cmake`
+- CMake 接线：`CMakeLists.txt` + `cmake/AddAOTICompileTarget.cmake`
 - C++ 运行时封装：`src/algorithm/upsample_2d_fourier_kernel.cpp`
 
 ## 在 C++ 注册自定义算子

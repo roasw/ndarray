@@ -117,7 +117,7 @@ add_subdirectory(tests)
 ########################
 
 if(DOXYGEN_FOUND)
-    set(NDARRAY_DOXYFILE_IN ${CMAKE_SOURCE_DIR}/cmake/Doxyfile.in)
+    set(NDARRAY_DOXYFILE_IN ${CMAKE_SOURCE_DIR}/Doxyfile.in)
     set(NDARRAY_DOXYFILE ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
     set(NDARRAY_DOXYGEN_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/docs/doxygen)
     configure_file(${NDARRAY_DOXYFILE_IN} ${NDARRAY_DOXYFILE} @ONLY)
