@@ -20,37 +20,35 @@ from common import (
 
 
 def parse_args() -> argparse.Namespace:
-    return parse_dual_package_test_args("Validate known upsample output and dump plots")
-
-
-def reference_upsample_2d_fourier(x: torch.Tensor, factor: int) -> torch.Tensor:
-    if x.ndim != 2:
-        raise RuntimeError("reference expects 2D tensor")
-    if factor < 1:
-        raise RuntimeError("factor must be >= 1")
-
-    h, w = x.shape
-    out_h, out_w = h * factor, w * factor
-
-    spec = torch.fft.fft2(x)
-    spec_centered = torch.fft.fftshift(spec)
-
-    pad_h = out_h - h
-    pad_w = out_w - w
-    pad_top = pad_h // 2
-    pad_bottom = pad_h - pad_top
-    pad_left = pad_w // 2
-    pad_right = pad_w - pad_left
-
-    spec_padded = torch.nn.functional.pad(
-        spec_centered, (pad_left, pad_right, pad_top, pad_bottom)
+    return parse_dual_package_test_args(
+        "Validate upsample output and dump comparison plots"
     )
-    spec_out = torch.fft.ifftshift(spec_padded)
-    out = torch.fft.ifft2(spec_out)
-    return out.real * (factor * factor)
 
 
-class Upsample2DFourierKnownOutputTests(unittest.TestCase):
+UPSAMPLE_3x3_EXPECTED = torch.tensor(
+    [
+        [0.0000, 0.6667, 1.0000, 0.6667, 0.0000, -0.3333],
+        [0.6667, 1.3333, 1.6667, 1.3333, 0.6667, 0.3333],
+        [1.0000, 1.6667, 2.0000, 1.6667, 1.0000, 0.6667],
+        [0.6667, 1.3333, 1.6667, 1.3333, 0.6667, 0.3333],
+        [0.0000, 0.6667, 1.0000, 0.6667, 0.0000, -0.3333],
+        [-0.3333, 0.3333, 0.6667, 0.3333, -0.3333, -0.6667],
+    ],
+    dtype=torch.float32,
+)
+
+UPSAMPLE_2x2_EXPECTED = torch.tensor(
+    [
+        [1.0000, 1.5000, 2.0000, 1.5000],
+        [2.0000, 2.5000, 3.0000, 2.5000],
+        [3.0000, 3.5000, 4.0000, 3.5000],
+        [2.0000, 2.5000, 3.0000, 2.5000],
+    ],
+    dtype=torch.float32,
+)
+
+
+class Upsample2DFourierPlotTests(unittest.TestCase):
     standard_f32: callable
     kernel_f32: callable
     plots_dir: str
@@ -85,12 +83,16 @@ class Upsample2DFourierKnownOutputTests(unittest.TestCase):
                     fontsize=8,
                 )
 
-    def _assert_case_and_plot(
-        self, x: torch.Tensor, factor: int, plot_name: str, title_prefix: str
+    def _assert_and_plot(
+        self,
+        x: torch.Tensor,
+        expected: torch.Tensor,
+        factor: int,
+        plot_name: str,
+        title_prefix: str,
     ):
         token = factor_token(factor)
 
-        expected = reference_upsample_2d_fourier(x, factor)
         out_standard = self.__class__.standard_f32(x, token)
         out_kernel = self.__class__.kernel_f32(x, token)
 
@@ -119,9 +121,8 @@ class Upsample2DFourierKnownOutputTests(unittest.TestCase):
 
         self.assertTrue(plot_path.exists())
 
-    def test_known_output_and_plots(self):
-        factor = 2
-        odd_x = torch.tensor(
+    def test_3x3_case(self):
+        x = torch.tensor(
             [
                 [0.0, 1.0, 0.0],
                 [1.0, 2.0, 1.0],
@@ -129,24 +130,25 @@ class Upsample2DFourierKnownOutputTests(unittest.TestCase):
             ],
             dtype=torch.float32,
         )
-        self._assert_case_and_plot(
-            odd_x, factor, "upsample_known_case_3x3_f32.png", "Odd 3x3"
+        self._assert_and_plot(
+            x, UPSAMPLE_3x3_EXPECTED, 2, "upsample_3x3_f32.png", "Odd 3x3"
         )
 
-        even_x = torch.tensor(
+    def test_2x2_case(self):
+        x = torch.tensor(
             [
                 [1.0, 2.0],
                 [3.0, 4.0],
             ],
             dtype=torch.float32,
         )
-        self._assert_case_and_plot(
-            even_x, factor, "upsample_known_case_2x2_f32.png", "Even 2x2"
+        self._assert_and_plot(
+            x, UPSAMPLE_2x2_EXPECTED, 2, "upsample_2x2_f32.png", "Even 2x2"
         )
 
 
 def main() -> int:
-    return run_test_case(Upsample2DFourierKnownOutputTests)
+    return run_test_case(Upsample2DFourierPlotTests)
 
 
 if __name__ == "__main__":

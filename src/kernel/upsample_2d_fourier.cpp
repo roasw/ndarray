@@ -1,15 +1,11 @@
 #include <cstdint>
 #include <stdexcept>
-#include <vector>
 
 #include <ATen/ATen.h>
-#include <ATen/ops/empty.h>
 #include <ATen/ops/fft_fft2.h>
-#include <ATen/ops/fft_fftshift.h>
 #include <ATen/ops/fft_ifft2.h>
-#include <ATen/ops/fft_ifftshift.h>
-#include <ATen/ops/pad.h>
 #include <ATen/ops/real.h>
+#include <ATen/ops/zeros.h>
 #include <torch/library.h>
 
 namespace kernel {
@@ -61,20 +57,23 @@ at::Tensor Upsample2DFourierCpu(const at::Tensor &x,
     const int64_t outW = w * factor;
 
     const at::Tensor spec = at::fft_fft2(x);
-    const at::Tensor specCentered = at::fft_fftshift(spec);
 
-    const int64_t padH = outH - h;
-    const int64_t padW = outW - w;
-    const int64_t padTop = padH / 2;
-    const int64_t padBottom = padH - padTop;
-    const int64_t padLeft = padW / 2;
-    const int64_t padRight = padW - padLeft;
+    const at::Tensor specPadded = at::zeros({outH, outW}, spec.options());
 
-    const std::vector<int64_t> pads = {padLeft, padRight, padTop, padBottom};
-    const at::Tensor specPadded = at::pad(specCentered, pads);
-    const at::Tensor specOut = at::fft_ifftshift(specPadded);
+    const int64_t hPos = (h + 1) / 2;
+    const int64_t wPos = (w + 1) / 2;
 
-    const at::Tensor out = at::fft_ifft2(specOut);
+    specPadded.slice(0, 0, hPos).slice(1, 0, wPos) =
+        spec.slice(0, 0, hPos).slice(1, 0, wPos);
+    specPadded.slice(0, outH - (h - hPos), outH).slice(1, 0, wPos) =
+        spec.slice(0, hPos, h).slice(1, 0, wPos);
+    specPadded.slice(0, 0, hPos).slice(1, outW - (w - wPos), outW) =
+        spec.slice(0, 0, hPos).slice(1, wPos, w);
+    specPadded.slice(0, outH - (h - hPos), outH)
+        .slice(1, outW - (w - wPos), outW) =
+        spec.slice(0, hPos, h).slice(1, wPos, w);
+
+    const at::Tensor out = at::fft_ifft2(specPadded);
     const at::Tensor real = at::real(out);
     return real * (factor * factor);
 }

@@ -7,7 +7,6 @@ from typing import Any
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 ALGORITHM_NAME = Path(__file__).stem
@@ -28,17 +27,27 @@ class Upsample2DFourier(nn.Module):
         return factor_token.shape[0]
 
     @staticmethod
-    def _pad_spectrum(
-        spec_centered: torch.Tensor, out_h: int, out_w: int
-    ) -> torch.Tensor:
-        h, w = spec_centered.shape
-        pad_h = out_h - h
-        pad_w = out_w - w
-        pad_top = pad_h // 2
-        pad_bottom = pad_h - pad_top
-        pad_left = pad_w // 2
-        pad_right = pad_w - pad_left
-        return F.pad(spec_centered, (pad_left, pad_right, pad_top, pad_bottom))
+    def _pad_spectrum(spec: torch.Tensor, out_h: int, out_w: int) -> torch.Tensor:
+        # AOTI/inductor lacks c-shim implementations for complex tensor
+        # slice_scatter / copy_ / full ops, falling back to proxy executor
+        # which produces NaNs.  Avoid this by converting to real view
+        # (last dim = 2 for real/imag), operating purely on float tensors,
+        # then converting back to complex before IFFT.
+        h, w = spec.shape
+        spec_real = torch.view_as_real(spec)
+        padded = torch.zeros(out_h, out_w, 2, dtype=spec_real.dtype, device=spec.device)
+
+        h_pos = (h + 1) // 2
+        w_pos = (w + 1) // 2
+
+        padded[:h_pos, :w_pos, :] = spec_real[:h_pos, :w_pos, :]
+        padded[out_h - h + h_pos :, :w_pos, :] = spec_real[h_pos:, :w_pos, :]
+        padded[:h_pos, out_w - w + w_pos :, :] = spec_real[:h_pos, w_pos:, :]
+        padded[out_h - h + h_pos :, out_w - w + w_pos :, :] = spec_real[
+            h_pos:, w_pos:, :
+        ]
+
+        return torch.view_as_complex(padded)
 
     @staticmethod
     def _ifft_and_scale(spec_out: torch.Tensor, factor: int) -> torch.Tensor:
@@ -53,10 +62,8 @@ class Upsample2DFourier(nn.Module):
         out_h, out_w = h * factor, w * factor
 
         spec = torch.fft.fft2(x)
-        spec_centered = torch.fft.fftshift(spec)
-        spec_padded = self._pad_spectrum(spec_centered, out_h, out_w)
-        spec_out = torch.fft.ifftshift(spec_padded)
-        return self._ifft_and_scale(spec_out, factor)
+        spec_padded = self._pad_spectrum(spec, out_h, out_w)
+        return self._ifft_and_scale(spec_padded, factor)
 
     @classmethod
     def export(cls, **config: Any) -> dict[str, Any]:
@@ -64,13 +71,28 @@ class Upsample2DFourier(nn.Module):
         if max_factor < 1:
             raise RuntimeError("max_factor must be >= 1")
 
-        h_dim = torch.export.Dim("H", min=1)
-        w_dim = torch.export.Dim("W", min=1)
+        max_dim = int(config.get("max_dim", 4096))
+        h_dim = torch.export.Dim("H", min=2, max=max_dim)
+        w_dim = torch.export.Dim("W", min=2, max=max_dim)
         factor_dim = torch.export.Dim("F", min=1, max=max_factor)
+
+        class ConstrainedModel(nn.Module):
+            def __init__(self, base_model):
+                super().__init__()
+                self.base_model = base_model
+
+            def forward(self, x, factor_token):
+                h, w = x.shape
+                torch._check(h >= 2)
+                torch._check(w >= 2)
+                torch._check(h > (h + 1) // 2)
+                torch._check(w > (w + 1) // 2)
+                return self.base_model(x, factor_token)
 
         modules: dict[str, Any] = {}
         for suffix, dtype in (("f32", torch.float32), ("f64", torch.float64)):
-            model = cls().eval()
+            base_model = cls().eval()
+            model = ConstrainedModel(base_model)
             example_input = torch.randn(7, 9, dtype=dtype)
             example_factor_token = torch.ones(2, dtype=torch.int64)
             exported = torch.export.export(

@@ -101,8 +101,8 @@ add_python_test_case(
 )
 
 add_python_test_case(
-    python_upsample_2d_fourier_known_output
-    tests/python/test_upsample_2d_fourier_known_output.py
+    python_upsample_2d_fourier_plot
+    tests/python/test_upsample_2d_fourier_plot.py
     --package-metadata
     ${UPSAMPLE_2D_FOURIER_METADATA_PATH}
     --kernel-package-metadata
