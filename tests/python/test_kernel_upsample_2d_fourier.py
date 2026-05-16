@@ -67,6 +67,19 @@ class KernelUpsample2DFourierTests(unittest.TestCase):
             for factor in (2, 4):
                 self._assert_match(shape, factor, torch.float64)
 
+    def test_input_unchanged(self):
+        for shape in [(3, 5), (4, 6), (7, 9)]:
+            for dtype in (torch.float32, torch.float64):
+                x = torch.randn(*shape, dtype=dtype)
+                token = torch.ones(2, dtype=torch.int64)
+                orig = x.clone()
+                op = self._kernel_op()
+                _ = op(x, token)
+                self.assertTrue(
+                    torch.equal(x, orig),
+                    f"kernel op modified input ({shape}, {dtype})",
+                )
+
     def test_invalid_rank_rejected(self):
         bad_input = torch.randn(1, 4, 6, dtype=torch.float32)
         op = self._kernel_op()

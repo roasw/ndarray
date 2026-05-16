@@ -98,3 +98,22 @@ class Upsample2DFourierTestBase(unittest.TestCase):
             torch.utils.dlpack.from_dlpack(cpp_input), self._factor_token(2)
         )
         self.assertTrue(torch.allclose(py_output, py_expected, atol=1e-4, rtol=1e-4))
+
+    def test_input_unchanged(self):
+        for shape in [(3, 5), (4, 6), (7, 9)]:
+            for dtype in (torch.float32, torch.float64):
+                x = torch.randn(*shape, dtype=dtype)
+                token = self._factor_token(2)
+                orig = x.clone()
+
+                _ = self.__class__.eager_f32(x, token)
+                self.assertTrue(
+                    torch.equal(x, orig),
+                    f"eager modified input ({shape}, {dtype})",
+                )
+
+                _ = self.__class__.compiled_f32(x, token)
+                self.assertTrue(
+                    torch.equal(x, orig),
+                    f"compiled modified input ({shape}, {dtype})",
+                )
