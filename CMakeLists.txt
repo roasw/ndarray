@@ -6,6 +6,16 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+#################
+# Build options #
+#################
+
+option(NDARRAY_BUILD_BENCHMARKS "Build benchmark tests" OFF)
+
+################
+# Dependencies #
+################
+
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(Torch REQUIRED)
 find_package(Armadillo REQUIRED)
@@ -110,7 +120,16 @@ add_aoti_compile_target(
 ##############
 
 enable_testing()
+
+set(PYTHON_TEST_ENV
+    "PYTHONPATH=${CMAKE_BINARY_DIR}/python:${CMAKE_SOURCE_DIR}/python:$ENV{PYTHONPATH}"
+)
+
 add_subdirectory(tests)
+
+if(NDARRAY_BUILD_BENCHMARKS)
+    add_subdirectory(benchmark)
+endif()
 
 ########################
 # Documentation target #

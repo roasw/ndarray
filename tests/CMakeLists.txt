@@ -70,10 +70,6 @@ add_cpp_test_case(
 # Python #
 ##########
 
-set(PYTHON_TEST_ENV
-    "PYTHONPATH=${CMAKE_BINARY_DIR}/python:${CMAKE_SOURCE_DIR}/python:$ENV{PYTHONPATH}"
-)
-
 add_python_test_case(
     python_ndarray_dlpack_bridge
     tests/python/test_ndarray_dlpack_bridge.py
