@@ -49,6 +49,10 @@ at::Tensor Upsample2DFourierCpu(const at::Tensor &x,
     }
 
     ValidateFactorToken(factorToken, FactorTokenValidationMode::Strict);
+    // factor_token is a 1D tensor whose length == upsampling factor.
+    // Only size(0) is read -- element values are never used.
+    // This indirection exists because torch.export requires all
+    // dynamic parameters as tensor inputs.
     const int64_t factor = factorToken.size(0);
 
     const int64_t h = x.size(0);

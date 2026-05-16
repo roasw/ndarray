@@ -24,6 +24,12 @@ class Upsample2DFourierKernel(nn.Module):
         if factor_token.dtype != torch.int64:
             raise RuntimeError("Upsample factor token dtype must be int64")
 
+    # factor_token is a 1D tensor whose length == upsampling factor.
+    # Its element values are never read; only size(0) is used.
+    # This indirection exists because torch.export requires all
+    # dynamic parameters to be tensor inputs (a plain int cannot
+    # carry dynamic-shape constraints).  See the reference
+    # algorithm class for the full rationale.
     @staticmethod
     def _run_kernel_op(x: torch.Tensor, factor_token: torch.Tensor) -> torch.Tensor:
         return getattr(torch.ops.ndarray, UPSAMPLE_2D_FOURIER)(x, factor_token)

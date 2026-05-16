@@ -59,6 +59,12 @@ ndarray::ndarray<T> RunUpsampleAoti(const ndarray::ndarray<T> &input,
         throw std::runtime_error("Upsample input must be a 2D tensor");
     }
 
+    // factor_token is a 1D tensor whose length == upsampling factor.
+    // The element values are never read; only size(0) is used by the
+    // exported graph (via sym_size.int).  This indirection exists because
+    // torch.export requires all dynamic parameters as tensor inputs.
+    // int64 matches the Python export trace -- keeping them in sync is
+    // required for AOTIModelPackageLoader::run() to accept the token.
     at::Tensor factorToken =
         at::ones({upsampleFactor}, at::TensorOptions().dtype(at::kLong));
 

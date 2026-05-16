@@ -24,6 +24,10 @@ class Upsample2DFourier(nn.Module):
 
     @staticmethod
     def _factor_from_token(factor_token: torch.Tensor) -> int:
+        # torch.export requires all dynamic params as tensor inputs
+        # (a plain int cannot carry dynamic-shape constraints).  We
+        # encode the upsampling factor as the 1D tensor length;
+        # the element values are never read -- only size(0) matters.
         return factor_token.shape[0]
 
     @staticmethod
