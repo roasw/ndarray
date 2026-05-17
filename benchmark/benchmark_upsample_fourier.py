@@ -81,7 +81,7 @@ def run_profile(
     kernel_aoti_runner,
     output_path: Path,
 ):
-    h, w, factor = 512, 512, 2
+    h, w, factor = 512, 512, 4
     x = torch.randn(h, w, dtype=torch.float32)
     token = factor_token(factor)
 

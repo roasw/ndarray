@@ -47,83 +47,66 @@
 - **kernel vs kernel-aoti**：几乎一致（< 2%），`.pt2` 包装未引入显著开销。
 - **aoti (参考 .pt2)**：中大尺寸下落后 30-40%，原因见下节性能剖析。
 - **f32 vs f64**：大尺寸下 f64 约为 f32 的 1.5-2 倍。
-- **瓶颈**：FFT 本身，时间随 O(HW·F²·log(HW·F²)) 增长。算子调度开销可忽略。
+- **瓶颈**：FFT 本身，时间随 $O(HW \\cdot F^2 \\cdot \\log(HW \\cdot F^2))$ 增长。算子调度开销可忽略。
 
 ## 性能剖析
 
-以下数据来自 512×512×2 配置的 Chrome trace，覆盖全部 4 条路径各 3 次预热迭代
-（代码路径为：eager、aoti 参考 .pt2、kernel torch.ops、kernel-aoti .pt2）。
+以下数据来自 factor=4（512×512→2048×2048）的 Chrome trace，各路径 3 次预热迭代。
 
-### 四路径耗时概览
+### 热点算子
 
-| 路径 | 3 次总耗时 (ms) | 单次 (ms) | 对比 eager |
-|------|----------------|-----------|------------|
-| `eager` | 33.8 | 11.3 | — |
-| `aoti` | 34.1 | 11.4 | 慢 1% |
-| `Kernel` | 21.6 | 7.2 | 快 36% |
-| `kernel-aoti` | 21.0 | 7.0 | 快 38% |
+| 调用 | 总 (ms) | 次数 | 说明 |
+|------|--------|------|------|
+| `aten::_fft_c2c` | 264 | 18 | vDSP FFT 内核——**仅 eager/kernel/kernel-aoti 可见**，aoti 的 FFT 在代理执行器内不可追踪 |
+| `aten::fft_ifft2` | 255 | 9 | IFFT 包装，含 `_fft_c2c` |
+| `boxed_run` | 197 | 6 | AOTI 运行时调用，~33 ms/次，内含全部计算 |
+| `ndarray::upsample_2d_fourier` | 168 | 6 | C++ kernel（FFT + 象限拷贝 + IFFT + 缩放），~28 ms/次 |
+| `aten::fft_fft2` | 12 | 9 | FFT 包装 |
+| `aten::zeros`/`zero_`/`fill_` | 12 | 27 | 输出张量分配与初始化 |
+| `aten::mul` | 5 | 15 | 缩放因子 |
+| `aten::copy_` | 3 | 57 | 切片赋值（`_pad_spectrum`） |
+| `aten::to`/`aten::_to_copy` | 3 | 36 | AOTI 中 `view_as_real`/`view_as_complex` 物化为物理拷贝 |
 
-注意：这里的单次包含 3 次预热迭代，Chrome trace 中路径总耗时并非简单的
-单次耗时 × 3，因为 torch profiler 自身有开销，且路径间存在交叉调度。
+**aoti 的 FFT 为何不可见？** `torch.fft.fft2` 操作于复数张量，AOTI 无法为复数算子
+生成代码（见构建警告），将其委托给代理执行器。代理执行器直接调用 vDSP 数学库，
+**绕过 ATen 调度器**——而 `torch.profiler` 的钩子挂在 ATen 调度器中。
+反之，`aten::copy_` 操作于 float 张量（`view_as_real` 后），AOTI 可为 float 操作
+生成可追踪代码，故在 aoti 窗口中可见（0.13 ms）。
 
-### 十大热点算子（按总耗时降序）
+kernel-aoti 无此问题：它调用 `torch.ops.ndarray.upsample_2d_fourier`（注册的 torch 算子），
+内部通过 ATen 调度器调用 FFT，profiler 可完整穿透 `boxed_run` 追踪。
 
-| 算子 | 总耗时 (ms) | 调用次数 | 单次最大 (ms) | 说明 |
-|------|------------|----------|---------------|------|
-| `aten::_fft_c2c` | 63.0 | 18 | 8.8 | vDSP/Accelerate FFT 实现，单次最大出现在 IFFT 阶段（输出尺寸为 1024×1024），最小的在 FFT 阶段（输入 512×512） |
-| `aten::fft_ifft2` | 51.5 | 9 | 8.8 | IFFT 调度包装，内部包含 `_fft_c2c`。3 次来自参考算法（eager+aoti），6 次来自 kernel（C++ 内部调用） |
-| `aten::fft_fft2` | 13.3 | 9 | 2.4 | FFT 调度包装，内部包含 `_fft_c2c`。较 IFFT 快因为前向 FFT 无缩放步骤 |
-| `aten::mul` | 3.5 | 15 | 0.4 | 输出缩放因子 (factor²)，每次 ~0.23 ms |
-| `aten::copy_` | 3.5 | 57 | 0.4 | 参考算法 `_pad_spectrum` 中切片赋值的逐元素拷贝 |
-| `aten::to` | 1.5 | 18 | 0.4 | AOTI 路径中 `view_as_real`/`view_as_complex` 被代理执行器物化为实际拷贝 |
-| `aten::_to_copy` | 1.5 | 18 | 0.4 | 同上，对应视图转换的另一半操作 |
+### 路径单次耗时 (ms)
 
-### 路径详情
+| 路径 | 单次 | FFT | 调度链 |
+|------|-----|-----|--------|
+| `eager` | 36.6 | ✓ 1.6 + 32.6 | `nn.Module._call_impl` → ATen |
+| `aoti` | 37.7 | ✗ 不可见 | `boxed_run` → 代理执行器（绕过 profiler） |
+| `kernel` | 27.9 | ✓ 1.2 + 26.0 | `torch.ops.__call__` → ATen |
+| `kernel-aoti` | 28.2 | ✓ 1.0 + 26.2 | `boxed_run` → 注册算子 → ATen |
 
-**eager 路径 (33.8 ms)：**
+**eager**：`forward` → `fft_fft2`（1.6 ms）→ `zeros`+`fill_`（2.5 ms，32 MB）
+→ 切片赋值 → `fft_ifft2`（32.6 ms）→ `mul`（1 ms）。首次 IFFT 40 ms，后续降至 30、27 ms
+（vDSP 首次调用创建 FFT plan 并缓存）。`view_as_real`/`view_as_complex` 为零拷贝。
 
-eager 调用走标准 PyTorch 调度链：`nn.Module._call_impl`（13.3 ms/次）
-→ `forward` → `fft_fft2`（~2 ms）→ `_pad_spectrum` 切片赋值（~1 ms 拷贝）
-→ `fft_ifft2`（~8 ms）→ `mul` 缩放。
+**aoti**：3 次 `boxed_run`（~38 ms/次），内部完全不可见——仅 `aten::copy_`（0.13 ms）例外，
+因为它对 float 张量切片赋值，AOTI 可为 float 操作生成可追踪代码。
 
-`view_as_real`/`view_as_complex` 在 eager 模式下为零拷贝视图（已验证 `data_ptr`
-相同），不产生 `to`/`_to_copy` 调用。切片赋值 `padded[:h_pos, ...] = spec_real[...]`
-产生 `copy_` 调用（57 次总计 3.5 ms），因为 padded 是新张量，需要向其写入数据。
+**kernel**：`torch.ops.__call__` → `ndarray::upsample_2d_fourier`（28 ms）。
+直接在复数张量上操作，无视图拷贝，无代理执行器。
 
-**aoti 参考 .pt2 路径 (34.1 ms)：**
+**kernel-aoti**：`boxed_run` → `ndarray::upsample_2d_fourier` → FFT。与 aoti 的关键区别：
+内部调用的是注册 torch 算子，FFT 经过 ATen 调度器，profiler 可完整追踪。
 
-AOTI 编译后的 `.pt2` 有两大不同：
+### aoti vs eager 性能差异
 
-1. **Python 调度被 `boxed_run` 替代**（每调用 ~9 ms）。`boxed_run` 是 AOTI
-   运行时的内部函数，负责将 Python 张量序列化为 IValue 容器、查找编译后的
-   kernel、调用、再将结果反序列化回 Python。这个开销是固定的，不随输入尺寸
-   增长。
+基准测试中 512×512×4 的 aoti 比 eager 慢 33%（38.0 vs 28.5 ms）：
+（profiler 中差距仅 3%，因 profiler 自身开销抵消了差异）
 
-1. **`view_as_real`/`view_as_complex` 视图变成了物理拷贝**。AOTI 编译器
-   不具备复数张量 slice_scatter/copy\_ 的 c-shim 实现，因此代理执行器将
-   `view_as_real` 退化为 `aten::to` + `aten::_to_copy`（共 36 次，~3 ms）。
-   这与 `_pad_spectrum` 中的注释吻合：*AOTI/inductor lacks c-shim
-   implementations for complex tensor slice_scatter/copy\_/full ops*.
-
-两项叠加，aoti 虽消除了 Python 的 `nn.Module._call_impl` 开销（13.3→0），
-但 `boxed_run`（9 ms）加视图拷贝（3 ms）加起来（12 ms）抵消了大部分收益，
-导致总耗时与 eager 几乎持平。
-
-**kernel 路径 (21.6 ms)：**
-
-直接调用 `torch.ops.ndarray.upsample_2d_fourier`，通过 `torch._ops.__call__`
-调度（每调用 3.6 ms，比 `nn.Module._call_impl` 的 13.3 ms 快 3.7×）。
-
-C++ kernel 内部直接在原生复数张量上执行 `.slice()` 象限拷贝和 `fft_fft2`/
-`fft_ifft2`，不经过任何 Python 层，不产生 `to`/`copy_` 调用（这些操作
-发生在 C++ 层，torch profiler 无法追踪）。
-
-**kernel-aoti .pt2 路径 (21.0 ms)：**
-
-`torch.ops.ndarray.upsample_2d_fourier` 被编译到 `.pt2` 中，调用时通过
-`boxed_run`（9 ms/次）调度。与 kernel 直接调用（3.6 ms/次）相比多了
-~5 ms 的装箱/拆箱开销，但由于 kernel 本身计算快（~7 ms/次），总开销仍然
-远低于 eager 路径。
+1. **代理执行器 FFT（~3-4 ms）**：aoti 通过代理执行器调用 FFT，比原生 ATen 慢。
+1. **视图物化（~4 ms）**：AOTI 将 `view_as_real`/`view_as_complex` 转为物理拷贝（64 MB）。
+   eager 为零拷贝视图（`data_ptr` 验证三者共享同一内存）。
+1. **逐算子调度（~1-2 ms）**：切片/填充/乘法各自独立经过代理执行器。
 
 ### 零拷贝验证
 
@@ -142,15 +125,6 @@ spec[0, 0]  # (42+0j)
 
 ### 结论
 
-1. **FFT 是硬瓶颈**：`aten::_fft_c2c` 占 63 ms / ~108 ms = 58%，已使用
-   Apple Accelerate/vDSP，无法优化。
-
-1. **参考 .pt2 的性能代价来自视图拷贝**：`view_as_real`/`view_as_complex`
-   在 eager 模式中为零拷贝，但在 AOTI 代理执行器中被物化为 `to`+`_to_copy`。
-   C++ kernel 直接在复数张量上操作，彻底避免此问题。
-
-1. **`boxed_run` 是 AOTI 调用的固有开销**：每调用 ~9 ms，对小尺寸主导，
-   大尺寸可忽略。这是 AOTI 运行时的 IValue 装箱/拆箱机制。
-
-1. **C++ kernel 路径是最优解**：无 Python 调度、无视图拷贝、无代理执行器，
-   仅受 FFT 性能限制。
+1. **FFT 是硬瓶颈**：占可见时间 67%，已用 Apple Accelerate/vDSP，无法进一步优化。
+1. **aoti 参考 .pt2 比 eager 慢 33%**：代理执行器 FFT（~3-4 ms）+ 视图物化拷贝（~4 ms）+ 逐算子调度（~1-2 ms）。根源是 AOTI 不能生成复数算子代码，整个算子链回退到代理执行器。
+1. **C++ kernel 是最优解**：无视图拷贝、FFT 走原生 ATen、无代理执行器。kernel-aoti 性能一致，`.pt2` 包装无额外开销。
